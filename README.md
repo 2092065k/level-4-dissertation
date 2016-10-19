@@ -15,3 +15,6 @@ DenseVector - contains all values, SparseVector - removes zeroes and maintains a
 Kmeans run() - takes RDD of dense vectors
 In input file each line is a dot in 3D space
 runAlgorithm() - takes RDD of VectorWithNorm
+
+Clustering objectives:
+minimize the mean squared distance from all points to  their  respective  cluster  centers
