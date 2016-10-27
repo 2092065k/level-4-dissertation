@@ -25,3 +25,11 @@ runAlgorithm() - takes RDD of VectorWithNorm
 
 Clustering objectives:
 minimize the mean squared distance from all points to  their  respective  cluster  centers
+
+#Porject use
+
+Rebuilding project: build/mvn -DskipTests clean package
+
+Launch shell: ./bin/spark-shell
+
+Simple shell command: sc.parallelize(1 to 1000).count()
