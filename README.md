@@ -10,7 +10,9 @@ http://www.jmlr.org/papers/volume17/15-237/15-237.pdf - Spark MLlib basics
 
 https://ocw.mit.edu/courses/sloan-school-of-management/15-097-prediction-machine-learning-and-statistics-spring-2012/projects/MIT15_097S12_proj1.pdf - Lloyd's online k-means
 
-https://www.eecs.tufts.edu/~dsculley/papers/fastkmeans.pdf - mini-batch k-means
+https://www.eecs.tufts.edu/~dsculley/papers/fastkmeans.pdf - Mini-batch k-means
+
+http://cs.du.edu/~mitchell/mario_books/Introduction_to_Machine_Learning_-_2e_-_Ethem_Alpaydin.pdf - Machine learning
 
 
 RDD, DAC, Legacy, Lineage, Narrow - Wide dependency, Hadoop
