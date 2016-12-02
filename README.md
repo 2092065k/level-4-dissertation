@@ -35,3 +35,11 @@ Rebuilding project: build/mvn -DskipTests clean package
 Launch shell: ./bin/spark-shell
 
 Simple shell command: sc.parallelize(1 to 1000).count()
+
+#Algorithm approach
+
+OnlineKMeans - recombining partial solutions
+
+StreamingOnlineKmeans - partition data by examining initially closest center for each RDD from the DStream and then run online
+
+ARTKmeans - recompute min and max on each new RDD and recombine previous solutions
