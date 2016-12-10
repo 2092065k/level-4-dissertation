@@ -40,6 +40,6 @@ Simple shell command: sc.parallelize(1 to 1000).count()
 
 OnlineKMeans - recombining partial solutions
 
-StreamingOnlineKmeans - partition data by examining initially closest center for each RDD from the DStream and then run online
+StreamingOnlineKmeans - partition data by examining what center the points are closest to initially for each RDD from the DStream and then run online
 
 ARTKmeans - recompute min and max on each new RDD and recombine previous solutions
