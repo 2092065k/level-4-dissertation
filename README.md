@@ -14,6 +14,8 @@ https://www.eecs.tufts.edu/~dsculley/papers/fastkmeans.pdf - Mini-batch k-means
 
 http://cs.du.edu/~mitchell/mario_books/Introduction_to_Machine_Learning_-_2e_-_Ethem_Alpaydin.pdf - Machine learning
 
+http://ac.els-cdn.com/0377042787901257/1-s2.0-0377042787901257-main.pdf?_tid=4b586634-c0aa-11e6-a748-00000aacb35e&acdnat=1481575012_a2f4e7407c483e9bb6f564a0c7f9bfaa - Silhouette
+
 
 RDD, DAC, Legacy, Lineage, Narrow - Wide dependency, Hadoop
 
