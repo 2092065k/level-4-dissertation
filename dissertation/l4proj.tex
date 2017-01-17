@@ -36,10 +36,12 @@ aims text
 The remainder of this report will focus on the mathematics underlying each of the considered K-Means clustering algorithms as well as the challenges of implementing them in a scalable fashion under Spark:
 \begin{itemize}
 \item Chapter~\ref{spark} covers the data processing model provided by Apache Spark and its machine learning library MLlib
-\item Chapter~\ref{kmeans} explains the most common iterative K-Means Clustering algorithm and outlines its existing implementation in MLlib
-\item Chapter~\ref{online} details Lloyd's Online K-Means Clustering algorithm and two different approaches to its implementation
+\item Chapter~\ref{kmeans} explains the most common used versions of K-Means Clustering algorithms
+\item Chapter~\ref{previous} discusses the approach taken by Spark's developers to create the current clustering API
+\item Chapter~\ref{propose} outlines the proposed algorithms to be implemented as part of Apache Sparks, along with their benefits and challenges
+\item Chapter~\ref{online} details two different approaches to the implementation of Lloyd's Online K-Means Clustering algorithm
 \item Chapter~\ref{art} presents a version of K-Means using Adaptive Resonance Theory and its implementation
-\item Chapter~\ref{som} presents a K-Means Clustering algorithm using Self-Organizing Maps and its implementation
+\item Chapter~\ref{som} presents the implementation of a  a K-Means Clustering algorithm using Self-Organizing Maps
 \item Chapter~\ref{eval} covers a variety of ways to evaluate both the performance of the presented algorithms and the quality of the data models they produce
 \item Chapter~\ref{conclusion} Concludes this report with a reflection on the whole project
 \end{itemize}
@@ -71,24 +73,38 @@ top level k-means text?
 
 iterative k-means text
 
-\subsection{MLlib's Implementation of Iterative K-Means}
-
-iterative implementation text
-
 \section{Mini-batch K-Means Clustering}
 
 mini-batch text
 
-\subsection{MLlib's Implementation of Mini-Batch K-Means}
+%==============================================================================
 
-mini-batch implementation text
+\chapter{Previous Work in MLlib}
+\label{previous}
+
+\section{Implementation of Iterative K-Means Clustering}
+
+\section{Implementation of Mini-batch K-Means Clustering}
+
+%==============================================================================
+
+\chapter{Proposed Extension to Spark/MLlib}
+\label{propose}
+
+\section{Online K-Means}
+
+\section{Adaptive Resonance Theory K-Means}
+
+\section{Self-Organizing Maps K-Means}
+
+\section{Benefits of Online Algorithms}
+
+\section{Implementation Challenge in Parallelizing Sequential Algorithms}
 
 %==============================================================================
 
 \chapter{Online K-Means}
 \label{online}
-
-\section{Algorithm Description}
 
 \section{Implementation Using Grand Mean}
 
@@ -99,16 +115,12 @@ mini-batch implementation text
 \chapter{Adaptive Resonance Theory K-Means}
 \label{art}
 
-\section{Algorithm Description}
-
 \section{Implementation Using Spark Streaming}
 
 %==============================================================================
 
 \chapter{Self-Organizing Maps K-Means}
 \label{som}
-
-\section{Algorithm Description}
 
 \section{Implementation Using Spark Streaming}
 
