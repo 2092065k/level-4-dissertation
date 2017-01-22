@@ -78,11 +78,21 @@ The remainder of this report will focus on the mathematics underlying each of th
 \label{spark}
 \section{Apache Spark}
 
-spark text
+A new big data processing paradigm in the form of cluster computing has become widely popular in recent years. It is a model where data-parallel computations are executed on clusters of unreliable machines by systems that provide scheduling, fault tolerance and load balancing\cite{Spark}. Hadoop MapReduce was the first software framework to implement these principles\cite{MapReduce}, with systems like Dryad and Map-Reduce-Merge generalizing the supported types of data flows. These system achieve fault tolerance and scalability by supplying the user with a means of expressing computation as an acyclic data flow graph which passes the input data through a set of operations. This enables the underlying system to handle any occurring faults as well as scheduling without any user interaction.
+
+Apache Spark is one of the latest big data processing frameworks which implements the cluster computing model. Its primary advantage over Hadoop is that it can perform in-memory data processing, while Map-Reduce persists all outputs back to disk a map or reduce action. 
+
+TODO: apache spark intro
+
+TODO: parallel operations - programming model
+
+(shorter section here - large expanse in the RDD section)
 
 \section{Resilient Distributed Datasets}
 
-RDD text
+TODO: DACs
+TODO: Transformation vs Actions
+TODO: Narrow and Wide Dependencies
 
 \section{MLlib}
 
