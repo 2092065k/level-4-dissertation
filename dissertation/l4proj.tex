@@ -3,7 +3,15 @@
 \usepackage{url}
 \usepackage{fancyvrb}
 \usepackage[final]{pdfpages}
+\usepackage{hyperref}
 
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
 
 \begin{document}
 \title{Implementations of Advanced K-Means Clustering Algorithms \\ for Spark/MLlib}
@@ -25,25 +33,43 @@ This paper presents a proposed extension to the MLlib component of Apache Spark 
 \label{intro}
 \pagenumbering{arabic}
 
-intro text
+Machine learning is an increasingly popular and relevant part of modern day systems looking to extract knowledge and value from the world around them. It refers to an approach to computation, where applications can learn without being explicitly programmed. These kinds of apps can analyze a provided sample of data and make predictions or decisions, based on some form of discovered pattern or correlation between the individual elements of the input set.
+
+By being able to take rational choices, through examining the surrounding environment, systems that employ machine learning have become a central component of artificial intelligence. Because these system adapt their behavior based on new ``experiences'' they are utilized in a wide range of computing tasks, where developing explicit algorithms is not feasible. Such examples include solving problems in speech recognition, vision and robotics.
+
+These machine learning algorithms are typically classified into three different categories based on the nature of the data they are learning from and the feedback of information for each input item:
+
+\begin{itemize}
+\item Supervised learning - in this case a program presented with a particular input set of data is also provided with the desired output, with the end goal of having the machine learn a mapping function from inputs to outputs
+\item Unsupervised learning - here the elements of the input data set are not provided with a desired output value in pairs, so the system is left on its own to find structure in its input
+\item Reinforcement learning - this refers to the idea of having an program interact with a dynamic environment, where it is attempting to achieve a certain goal. Along with every action, the program is also provided with positive or negative feedback, depending on whether the action aided in achieving the goal or not. 
+\end{itemize}
+
+Many of these machine learning algorithms have a similar underlying approach to their implementation. Input training data with some unknown probability distribution is presented and the program has to construct a model that allows it to extract meaning from the data and make sufficiently accurate predictions for instances that have not been encountered yet. This is generally achieved by defining a loss function and adjusting the model in attempts to minimize this loss with respect to the inputs -- effectively an optimization problem.
+
+It is clear that machine learning algorithms heavily depend on the availability of input data in order to optimize their models to more accurately reflect the state of the real world. Therefore the quantity of supplied input data begins to have a significant impact on the quality of the output produced by application relying on machine learning. With the advent of big data and technologies meant to enable fast and reliable processing of big data, these algorithms can now make use of vast amounts of information, enabling them to create more accurate and valuable results. Examples of big data processing frameworks include Hadoop and Apache Spark.
+
+The Apache Spark project in particular includes a component called MLlib. MLlib is a machine learning library built on top of the core features of Spark. It provides implementations for a variety of popular machine learning algorithms, all of which are written in a way meant to support horizontal scalability\footnote{Horizontal scaling refers to the scaling of a system by adding more parallel, similar in performance nodes. It is directly contrasted by vertical scaling where additional resources are added to the one node of a system.} when operating on big data sets.
 
 \section{Aims}
 
-aims text
+The aim of this project is to create an extension to the MLlib component of Apache Spark, by developing implementations for a variety of K-Means clustering algorithms that the framework does not currently support. The newly introduced algorithms also need to be evaluated and contrasted with the ones already provided by Spark.
+
+K-Means clustering is an example of an unsupervised machine learning algorithm. It is a method of vector quantization\footnote{Quantization is the process of mapping a large set of input values to a smaller set.}, that originated from signal processing. Its primary purpose is to group a collection of \texttt{N} data points into \texttt{K} distinct clusters. There is a variety of algorithms that produce the end result of grouping data points into \texttt{K} clusters, with varying levels of speed and accuracy. The ones that this project aims to implement as part of Spark could deliver a desired performance improvement with minimal loss in quality.
 
 \section{Report outline}
 
 The remainder of this report will focus on the mathematics underlying each of the considered K-Means clustering algorithms as well as the challenges of implementing them in a scalable fashion under Spark:
 \begin{itemize}
-\item Chapter~\ref{spark} covers the data processing model provided by Apache Spark and its machine learning library MLlib
-\item Chapter~\ref{kmeans} explains the most common used versions of K-Means Clustering algorithms
-\item Chapter~\ref{previous} discusses the approach taken by Spark's developers to create the current clustering API
-\item Chapter~\ref{propose} outlines the proposed algorithms to be implemented as part of Apache Sparks, along with their benefits and challenges
-\item Chapter~\ref{online} details two different approaches to the implementation of Lloyd's Online K-Means Clustering algorithm
-\item Chapter~\ref{art} presents a version of K-Means using Adaptive Resonance Theory and its implementation
-\item Chapter~\ref{som} presents the implementation of a  a K-Means Clustering algorithm using Self-Organizing Maps
-\item Chapter~\ref{eval} covers a variety of ways to evaluate both the performance of the presented algorithms and the quality of the data models they produce
-\item Chapter~\ref{conclusion} Concludes this report with a reflection on the whole project
+\item \textbf{Chapter~\ref{spark}} covers the data processing model provided by Apache Spark and its machine learning library MLlib
+\item \textbf{Chapter~\ref{kmeans}} explains the most common used versions of K-Means Clustering algorithms
+\item \textbf{Chapter~\ref{previous}} discusses the approach taken by Spark's developers to create the current clustering API
+\item \textbf{Chapter~\ref{propose}} outlines the proposed algorithms to be implemented as part of Apache Sparks, along with their benefits and challenges
+\item \textbf{Chapter~\ref{online}} details two different approaches to the implementation of Lloyd's Online K-Means Clustering algorithm
+\item \textbf{Chapter~\ref{art}} presents a version of K-Means using Adaptive Resonance Theory and its implementation
+\item \textbf{Chapter~\ref{som}} presents the implementation of a  a K-Means Clustering algorithm using Self-Organizing Maps
+\item \textbf{Chapter~\ref{eval}} covers a variety of ways to evaluate both the performance of the presented algorithms and the quality of the data models they produce
+\item \textbf{Chapter~\ref{conclusion}} Concludes this report with a reflection on the whole project
 \end{itemize}
 
 %==============================================================================
@@ -149,4 +175,13 @@ conclusion text - multiple sections?
 
 \bibliographystyle{plain}
 \bibliography{l4proj}
+
+%==============================================================================
+
+\begin{appendices}
+
+\chapter{First Appendix}
+
+\end{appendices}
+
 \end{document}
