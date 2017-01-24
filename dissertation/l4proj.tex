@@ -80,23 +80,29 @@ The remainder of this report will focus on the mathematics underlying each of th
 
 A new big data processing paradigm in the form of cluster computing has become widely popular in recent years. It is a model where data-parallel computations are executed on clusters of unreliable machines by systems that provide scheduling, fault tolerance and load balancing\cite{Spark}. Hadoop MapReduce was the first software framework to implement these principles\cite{MapReduce}, with systems like Dryad and Map-Reduce-Merge generalizing the supported types of data flows. These system achieve fault tolerance and scalability by supplying the user with a means of expressing computation as an acyclic data flow graph which passes the input data through a set of operations. This enables the underlying system to handle any occurring faults as well as scheduling without any user interaction.
 
-Apache Spark is one of the latest big data processing frameworks which implements the cluster computing model. Its primary advantage over Hadoop is that it can perform in-memory data processing, while Map-Reduce persists all outputs back to disk a map or reduce action. 
+Apache Spark is one of the latest big data processing frameworks which implements the cluster computing model. One of its primary advantages over Hadoop is that it can perform in-memory data processing, while Map-Reduce persists all outputs back to disk after a map or reduce action. This extends the scope of problems which can be solved efficiently by Spark to also include applications that reuse a working set of data across multiple parallel operations. It is impractical to implement these kinds of apps under Hadoop as between each iteration of an algorithm over the working set, the job must reload the data from disk, causing unnecessary overhead, resulting in degraded performance. Examples include iterative jobs and interactive analysis\cite{Spark}.
 
-TODO: apache spark intro
+Due to its differences in design philosophy, users of the Spark framework have reported a 100x speed increase in certain work loads, versus a similar MapReduce solution, as well as a 10x faster execution on disk\cite{webSpark}. This performance improvement, however, results in the system requiring more RAM to carry out its operations.
 
-TODO: parallel operations - programming model
+The core components of Spark are implemented in Scala - a statically typed functional programming language that runs on top of the Java Virtual Machine. It also includes object-oriented features and supports Java interoperability thanks to its JVM roots -- this allows Spark to easily interact with Java based systems such as HDFS. In addition to Scala the framework also export an API available in Java, Python and R.
 
-(shorter section here - large expanse in the RDD section)
+Spark can also be used interactively from a modified version of the Scala interpreter. This method provides full access to the API, allowing a user to define variables, functions, classes and run parallel jobs on a computer cluster. Spark is possibly the first system that allows a general-purpose programming language to be used interactively to process large data sets on a cluster\cite{Spark}.
 
 \section{Resilient Distributed Datasets}
 
 TODO: DACs
+
 TODO: Transformation vs Actions
+
 TODO: Narrow and Wide Dependencies
+
+\section{Spark Streaming}
+
+TODO: DStreams
 
 \section{MLlib}
 
-MLlib text
+TODO: The MLlib paper
 
 %==============================================================================
 
