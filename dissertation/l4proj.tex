@@ -4,6 +4,10 @@
 \usepackage{fancyvrb}
 \usepackage[final]{pdfpages}
 \usepackage{hyperref}
+\usepackage{fancyvrb}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{graphicx}
 
 \hypersetup{
     colorlinks,
@@ -90,9 +94,31 @@ Spark can also be used interactively from a modified version of the Scala interp
 
 \section{Resilient Distributed Datasets}
 
+To achieve its goals, Spark introduces an abstraction called resilient distributed datasets -- RDDs. They are a parallel, fault-tolerant data structure that lets users explicitly persist intermediate results in memory, control their partitioning to optimize data placement, and manipulate them using a rich set of operations\cite{RDD}. The RDD API is the primary way of expressing computation on big data sets in Apache Spark.
+
+\subsection{Basics of the RDD API}
+
+An RDD is a read-only partitioned collection of records. It supports a series of methods that resemble operations, available to most collections in a functional programming language\footnote{Despite the nature of the RDD based API, code written in Spark does not need to adhere to the principles of pure functional programing.}. RDDs can only be created through deterministic operations on either data in stable storage or other RDDS. These kind of functions are known as transformations -- examples include map, filter, flatMap and others. Transformations are lazy\footnote{A lazy function is not evaluated when it is called, but rather when something else tries to access its result.} operations that define a new RDD, which is typically the result of applying a function to every data item in the source RDD. By chaining together several of these transformations a user can define a directed acyclic graph (DAC) of operations the data needs to pass through (achieved in a parallel fashion).
+
+Along with transformations, the RDD API also supports actions. These are operations that return a value to the application or export data to a storage system. Examples of actions include - count, collect, reduce and others. Typically a user would define a DAC of transformations to be performed on some data source, these operations would then not be executed until an action is invoked, at which point the result of all transformations in the DAC is evaluated along with the specified action at the end. If there is a large sequence of transformations within the DAC of an RDD, that will be operated on in the end by multiple different actions (branching towards a later point in the DAC), a developer might choose to checkpoint an intermediate stage of the RDD, so that Spark does not need to recompute every operation applied to that RDD.
+
+\begin{table}[H]
+\label{Actions and Transformations}
+\caption{Transformations and actions available on RDDs in Spark.}
+\includegraphics[width=1.0\textwidth]{images/spark-trans-action-edited}
+\end{table}
+
+\subsection{RDD fault-tolerance}
+
+
+
+(TODO: RDDS implementing efficient fault tolerance through coarse-grained transformations)
+
 TODO: DACs
 
 TODO: Transformation vs Actions
+
+TODO: Fault tolerance with legact
 
 TODO: Narrow and Wide Dependencies
 
