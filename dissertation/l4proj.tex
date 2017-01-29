@@ -8,6 +8,10 @@
 \usepackage{float}
 \usepackage{multirow}
 \usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{MnSymbol}
+\usepackage{wasysym}
+
 
 \hypersetup{
     colorlinks,
@@ -98,9 +102,9 @@ To achieve its goals, Spark introduces an abstraction called resilient distribut
 
 \subsection{Basics of the RDD API}
 
-An RDD is a read-only partitioned collection of records. It supports a series of methods that resemble operations, available to most collections in a functional programming language\footnote{Despite the nature of the RDD based API, code written in Spark does not need to adhere to the principles of pure functional programing.}. RDDs can only be created through deterministic operations on either data in stable storage or other RDDS. These kind of functions are known as transformations -- examples include map, filter, flatMap and others. Transformations are lazy\footnote{A lazy function is not evaluated when it is called, but rather when something else tries to access its result.} operations that define a new RDD, which is typically the result of applying a function to every data item in the source RDD. By chaining together several of these transformations a user can define a directed acyclic graph (DAC) of operations the data needs to pass through (achieved in a parallel fashion).
+An RDD is a read-only partitioned collection of records. It supports a series of methods that resemble operations, available to most collections in a functional programming language\footnote{Despite the nature of the RDD based API, code written in Spark does not need to adhere to the principles of pure functional programing.}. RDDs can only be created through deterministic operations on either data in stable storage or other RDDS. These kind of functions are known as transformations -- examples include \textit{map}, \textit{filter}, \textit{flatMap} and others. Transformations are lazy\footnote{A lazy function is not evaluated when it is called, but rather when something else tries to access its result.} operations that define a new RDD, which is typically the result of applying the same function to every data item in the source RDD -- making Spark ideal for batch processing. By chaining together several of these transformations a user can define a directed acyclic graph (DAC) of operations the data needs to pass through (achieved in a parallel fashion).
 
-Along with transformations, the RDD API also supports actions. These are operations that return a value to the application or export data to a storage system. Examples of actions include - count, collect, reduce and others. Typically a user would define a DAC of transformations to be performed on some data source, these operations would then not be executed until an action is invoked, at which point the result of all transformations in the DAC is evaluated along with the specified action at the end. If there is a large sequence of transformations within the DAC of an RDD, that will be operated on in the end by multiple different actions (branching towards a later point in the DAC), a developer might choose to checkpoint an intermediate stage of the RDD, so that Spark does not need to recompute every operation applied to that RDD.
+Along with transformations, the RDD API also supports actions. These are operations that return a value to the application or export data to a storage system. Examples of actions include - \textit{count}, \textit{collect}, \textit{reduce} and others. Typically a user would define a DAC of transformations to be performed on some data source, these operations would then not be executed until an action is invoked, at which point the result of all transformations in the DAC is evaluated along with the specified action at the end. If there is a large sequence of transformations within the DAC of an RDD, that will be operated on in the end by multiple different actions (branching towards a later point in the DAC), a developer might choose to checkpoint an intermediate stage of the RDD, so that Spark does not need to recompute every operation applied to that RDD.
 
 \begin{table}[H]
 \label{Actions and Transformations}
@@ -110,17 +114,44 @@ Along with transformations, the RDD API also supports actions. These are operati
 
 \subsection{RDD fault-tolerance}
 
+To begin the processing of an RDD, the individual data partitions (making up the source used to create the RDD -- typically a file in HDFS), are sent to different nodes in the computing cluster where the user defined DAC of operations is executed simultaneously for each partition (if the system could afford to allocate enough resources for a one-to-one mapping of partitions to cluster nodes). In a large scale distributed system, however, failure of individual hardware components is to be expected. When one of the clusters fails, while processing an RDD partition, Spark is able to reconstruct the lost data without notifying the user.
 
+Because RDDs provide an interface based on transformations (e.g. map, flatMap) that apply the same operations to many data items, they can efficiently provide fault-tolerance by logging the transformations used to build a dataset rather than the actual data (although checkpointing RDDs can have its advantages as previously mentioned). This log of operations is also known as the lineage of the RDD. Thus if a partition of an RDD is lost, the RDD has enough information about how it was derived from other RDDs to recompute just the missing partition\cite{RDD}. Therefore lost data can be quickly recovered without the need for costly replication.
 
-(TODO: RDDS implementing efficient fault tolerance through coarse-grained transformations)
+The lineage of an RDD is a powerful property, since it ensures that a program cannot reference an RDD that it cannot reconstruct after failure -- it can always recompute all partitions from data in stable storage.
 
-TODO: DACs
+\subsection{RDD representation}
 
-TODO: Transformation vs Actions
+The Apache Spark framework provides a graph-based representation of RDDs where each dataset has a common interface, exposing five pieces of information:
 
-TODO: Fault tolerance with legact
+\begin{itemize}
+\renewcommand{\labelitemi}{\scriptsize$\blacksquare$}
+\item a set of partitions, which are atomic pieces of the dataset
+\item a set of dependencies on parent RDDs
+\item a function for computing the dataset based on its parents
+\item metadata about its partition scheme
+\item metadata about its data placement
+\end{itemize}
 
-TODO: Narrow and Wide Dependencies
+An RDD representing an HDFS file, for example, has as many partitions as the file has blocks and knows on which machine each block is on. If a map transformation were to be applied on this RDD, the resulting dataset would have the same partitions, but the map function would be applied on the parent's data when computing its elements.
+
+An important aspect of this common interface is the representation of dependencies between RDDs. They are classified into two types: \textit{narrow} dependencies, where each partition of the parent RDD is used by at most one partition of the child RDD, and \textit{wide} dependencies where multiple child partitions may depend on a single parent partition\cite{RDD}. The \textit{map} operation would be an example of a narrow dependency, where as \textit{groupByKey} would result in a wide dependency.
+
+The distinction between these two forms of dependencies has two primary implications. First, narrow dependencies allow for pipelined execution on one cluster node. This means that multiple successive operations resulting in narrow dependencies can be carried out on an RDD partition in the same computing cluster, without needing to move data between cluster nodes. Wide dependencies, however, require that data from all parent partitions to be available and to be shuffled across the nodes of the cluster. Second, narrow dependencies allow for a more efficient recovery from failure, as only the lost partitions need to be recomputed -- this can also be done in parallel on different processing nodes. When there are wide dependencies in the lineage graph of an RDD, however, a single failed node could loose information derived from all parent partitions, requiring a full re-execution of all transformations in the DAC, operating on the RDD.
+
+\begin{figure}[H]
+\label{RDD dependencies}
+\caption{Examples  of  narrow  and  wide  dependencies.  Each box is an RDD, with partitions shown as shaded rectangles.}
+\includegraphics[width=1.0\textwidth]{images/rdd_dependency}
+\end{figure}
+
+\section{Shared Variables}
+
+When invoking transformations on an RDD -- such as \textit{map} and \textit{filter}, developers pass closures (functions) to Spark. Similar to functional programming these closures can refer to any variable in the scope where they are created. Once Spark begins the execution of those transformations on a worker node, the referenced local variables are copied to the worker. However, Spark also allows programmers to create two restricted types of shared variables to support common usage patterns\cite{Spark}.
+
+If a Spark program contains a large read-only piece of data that is used in multiple parallel operations, it is preferable to distribute it to the workers only once, as opposed to including it with each closure. This is accomplished by creating a ``broadcast variable'' object which acts as a wrapper for the desired value. It ensures that it is only copied once to each worker, thus reducing network traffic and improving performance.
+
+The second type of shared variables provided by Spark are known as ``accumulators''. Workers can only ``add'' to these variables by using an associative operation, and their value can only be read by the driver program. They enable easy implementations of counters (similar to MapReduce) and provide a more imperative syntax for parallel sums. Accumulators can be defined for any data type that has a ``zero value'' and an ``add'' operation.
 
 \section{Spark Streaming}
 
