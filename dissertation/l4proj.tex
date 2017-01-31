@@ -155,11 +155,18 @@ The second type of shared variables provided by Spark are known as ``accumulator
 
 \section{Spark Streaming}
 
-TODO: DStreams
+In addition to its base API, Spark also provides a solution for developing applications based on sacalble, high-throughput, fault-tolerant stream processing of live data. This is achieved thanks to Spark Streaming - a system that allows data to be ingested from many sources like Kafka, Flume, Kinesis, or TCP sockets, and later processed using complex algorithms expressed with high-level functions.
+
+Once a Spark program defines a input data source, Spark Streaming can receive a live data stream from the specified source, which is then divided into batches that are later processed by the Spark engine. The primary abstraction that implements this operation is the \textit{discretized stream} or \textit{DStream}\cite{DStream}. It is represented internally as a sequence of RDDs.
+
+Once a DStream has been created from a specified live data source (e.g. Kafka, an HDFS directory, whose content is being simultaneously altered by a different application, etc.) or alternatively from a different DStream, it begins to store or log any new information it has received. A program utilizing Spark Streaming needs to also specify a batch interval to the streaming context -- used to configure all DStreams for that application. At the end of every interval the DStream produces an RDD, containing all the data output from the specified source, since the start of the interval. The resulting RDDs are then processed by the remaining application logic -- various transformations and actions. Finally, the batch interval must be set based on the latency requirements of  the application and the available cluster resources.
 
 \section{MLlib}
 
-TODO: The MLlib paper
+The Apache Spark project also includes a distributed machine learning library, built on top of Spark's core features -- MLlib. MLlib provides efficient functionality for a wide range of learning settings and includes several underlying statistical, optimization,
+and linear algebra primitives. It exploits the benefits of Spark's fault-tolerant, parallel big data processing paradigm to deliver fast and scalable implementations of standard learning algorithms for common learning settings including:  classification, regression, collaborative filtering, clustering, and dimensionality reduction\cite{MLlib}.
+
+MLlib also inter-operates well with Spark's other major components. Thanks to Spark SQL\cite{SQL} developers can more easily designate their prior storage solutions as the data source of the desired machine learning algorithms. Spark Streaming is also used by MLlib to enable applications to learn from real-time online streamed data, however, this is only supported by certain algorithms.
 
 %==============================================================================
 
