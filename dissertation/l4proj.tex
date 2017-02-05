@@ -11,6 +11,9 @@
 \usepackage{amsmath}
 \usepackage{MnSymbol}
 \usepackage{wasysym}
+\usepackage{mathtools}
+\usepackage{subcaption}
+\usepackage{relsize}
 
 
 \hypersetup{
@@ -173,11 +176,54 @@ MLlib also inter-operates well with Spark's other major components. Thanks to Sp
 \chapter{K-Means Clustering}
 \label{kmeans}
 
-top level k-means text?
+A long time pursuit in the field of artificial intelligence and machine learning has been to grant machines the ability to differentiate between discrete objects with similar or vastly different properties and to be able to identify and classify them. At a high level, an AI would need to be able to examine the features of an object, which has not been previously encountered and create an internal, digital representation of it. Then the machine would need to perform a computation on that model to extract meaning from it and predict the nature of the object, without human input - i.e. explicitly providing a label.
+
+Recent developments in image processing and robotics have had a great impact on the field of machine learning, in regards to allowing systems that employ these practices to interact more directly in the real world. The aim of this paper, however, is not to cover techniques for creating a mapping from real world objects to internal, machine friendly representations of their properties, but rather to outline the implementation of algorithms for operating on said representations -- focusing on cluster analysis.
+
+Cluster analysis is concerned with the task of grouping a set of objects in a way, such that objects in the same group (known as a cluster) are more similar to each other than those in other groups. It is commonly used in statistical data analysis as well as data mining. Along with machine learning, cluster analysis has applications in other fields such as pattern recognition, information retrieval, biometrics and others.
+
+In cluster analysis, different approaches to the problem of groping data together can vary greatly -- algorithms can differ in their notation regarding what constitutes a cluster, as well as how to find them. Popular definitions of clusters include: groups with small distances between the individual cluster members, dense areas of the data space or specific statistical distributions. Given a way of evaluating the quality of a particular assignment of individuals to groups, clustering can also be described as an optimization problem, were we are trying to maximize that value.
+
+K-Means clustering is an examples of cluster analysis with a centroid-based model. It was originally used in signal processing as a method for vector quantization. K-Means functions by partitioning \texttt{N} observable objects into \texttt{K} distinct clusters, where every object belongs to the cluster with the nearest mean  -- here these observations will only take the form of N-dimensional data points. The actual clusters are represented as a central vector (N-dimensional point), which does not necessarily belong to the input set.
+
+\begin{figure}[H]
+\label{basic clusters}
+\centering
+\begin{subfigure}{.5\textwidth}
+  \centering
+  \includegraphics[width=1.2\linewidth]{images/figure_1}
+  \label{fig:sub1}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \centering
+  \includegraphics[width=1.2\linewidth]{images/figure_2}
+  \label{fig:sub2}
+\end{subfigure}
+\caption{Examples of three distinct clusters in 3 dimensional space}
+\label{fig:test}
+\end{figure}
+
+When the number of centroids \texttt{K} is fixed, K-Means clustering provides a formal definition of an optimization problem: find the \texttt{K} cluster centers and assign the input data points to the nearest center, such that the sum of squared distances from the observed points to their respective centers is minimized. This is expressed by the following formula:
+
+\begin{figure}[H]
+\label{wcss}
+\[ \scalebox{2}{$ arg_{s} min \sum_{i=1}^{k}\sum_{x \in S} \|x - \mu_{i} \|^{2} $} \]
+\caption{Within-Cluster Sum of Squares (WCSS)}
+\end{figure}
+
+Here $x_{1}$, $x_{2}$ ... $x_{n}$ is the set of observations in the form of multi-dimensional data points, $S_{1}$, $S_{2}$ .. $S_{k}$ are the \texttt{K} partitions of data points that are assigned to the \texttt{K} centers, and $\mu_{i}$ is the value of the centroid vector for partition $S_{i}$. This value is also referred to as the within-cluster sum of squares (WCSS) or the loss for the particular clustering.
+
+The K-Means clustering optimization problem is also known to be NP-hard, therefore  a common approach is to simply search for approximate solutions. There is a number of efficient heuristic algorithms that quickly converge to a local optimum. Two of the most frequently used ones are Lloyd's algorithm (called Iterative K-Means here due to its reliance on iterative processing of the input data) and Mini-batch K-Means. These two algorithms will be examined in more detail as they present a proven method for deriving a practical result from a clustering operation and are already implemented as part of the API of MLlib.
+
+Finally, it is worth considering that most forms of K-Means clustering require that the value of \texttt{K} is specified in advance. This is considered to be one of the main weaknesses of these algorithms as it is usually uncertain how many logical groups the data consists of. Similar issues with inconsistency can occur when poor initial values for the \texttt{K} centroids are chosen, as well as when the logical clusters, formed by the input data, are not approximately similar in size.
 
 \section{Iterative K-Means Clustering}
 
-iterative k-means text
+TODO: citations for previous section
+
+TODO: embedded pseudo-code
+
+Iterative K-Means Clustering, like all clustering algorithms, is a form of unsupervised machine learning.
 
 \section{Mini-batch K-Means Clustering}
 
