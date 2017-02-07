@@ -263,7 +263,11 @@ The fact that this algorithm needs to consider the whole set of data points mult
 
 \section{Mini-batch K-Means Clustering}
 
-Mini-Batch K-Means clustering\cite{Mini}
+Mini-Batch K-Means clustering\cite{Mini} aims to resolve the scalability issue with standard K-Means in regards to storing all of the observed data and to provide low computation costs for working on large data sets -- capable of meeting the latency requirements of user facing applications.
+
+It functions by taking small sample chunks of data form a source (mini-batches) and processing them one at a time. These mini-batches can be randomly sampled from a stored collection of data or they could be the output of a live data stream where each chunk needs to only be processed once without the need to store previous chunks.
+
+Given an initial set of \textit{k} means and a considered mini-batch \textit{M}, the algorithm assigns each observed data point to one of the \textit{k} centers. For each point the weight of the closest center is increased by one and the center is updated according to the formula: $center = (1 - learningRate)cener + learningRate * observedPoint$ where the learning rate is equal to $\frac{1}{clusterWeight}$.
 
 \begin{algorithm}
 \caption{Mini-batch K-Means}\label{mini-batch}
@@ -288,6 +292,8 @@ Mini-Batch K-Means clustering\cite{Mini}
 \State \textbf{end for}
 \end{algorithmic}
 \end{algorithm}
+
+This algorithm aims to provide an equal contribution, in regards to forming the centroids, for each observed point. However, because the data source could be a live stream where the centers of the logically formed clusters change over time, there is a proposed alteration to the algorithms that where older observations have a smaller, decaying impact on the locations of the centers in comparison to newer observations\cite{Non-Stationary}. This can be achieved by changing the learning rate to a constant in the range $\in (0,1)$.
 
 %==============================================================================
 
