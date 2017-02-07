@@ -185,11 +185,11 @@ A long time pursuit in the field of artificial intelligence and machine learning
 
 Recent developments in image processing and robotics have had a great impact on the field of machine learning, in regards to allowing systems that employ these practices to interact more directly in the real world. The aim of this paper, however, is not to cover techniques for creating a mapping from real world objects to internal, machine friendly representations of their properties, but rather to outline the implementation of algorithms for operating on said representations -- focusing on cluster analysis.
 
-Cluster analysis is concerned with the task of grouping a set of objects in a way, such that objects in the same group (known as a cluster) are more similar to each other than those in other groups. It is commonly used in statistical data analysis as well as data mining. Along with machine learning, cluster analysis has applications in other fields such as pattern recognition, information retrieval, biometrics and others.
+Cluster analysis is concerned with the task of grouping a set of objects in a way, such that objects in the same group (known as a cluster) are more similar to each other than those in other groups\cite{MLIntro}. It is commonly used in statistical data analysis as well as data mining. Along with machine learning, cluster analysis has applications in other fields such as pattern recognition, information retrieval, biometrics and others.
 
 In cluster analysis, different approaches to the problem of groping data together can vary greatly -- algorithms can differ in their notation regarding what constitutes a cluster, as well as how to find them. Popular definitions of clusters include: groups with small distances between the individual cluster members, dense areas of the data space or specific statistical distributions. Given a way of evaluating the quality of a particular assignment of individuals to groups, clustering can also be described as an optimization problem, were we are trying to maximize that value.
 
-K-Means clustering is an examples of cluster analysis with a centroid-based model. It was originally used in signal processing as a method for vector quantization. K-Means functions by partitioning \texttt{N} observable objects into \texttt{K} distinct clusters, where every object belongs to the cluster with the nearest mean  -- here these observations will only take the form of N-dimensional data points. The actual clusters are represented as a central vector (N-dimensional point), which does not necessarily belong to the input set.
+K-Means clustering is an examples of cluster analysis with a centroid-based model\cite{TopTen}. It was originally used in signal processing as a method for vector quantization. K-Means functions by partitioning \texttt{N} observable objects into \texttt{K} distinct clusters, where every object belongs to the cluster with the nearest mean  -- here these observations will only take the form of N-dimensional data points. The actual clusters are represented as a central vector (N-dimensional point), which does not necessarily belong to the input set.
 
 \begin{figure}[H]
 \label{basic clusters}
@@ -216,7 +216,7 @@ When the number of centroids \texttt{K} is fixed, K-Means clustering provides a 
 \caption{Within-Cluster Sum of Squares (WCSS)}
 \end{figure}
 
-Here $x_{1}$, $x_{2}$ ... $x_{n}$ is the set of observations in the form of multi-dimensional data points, $S_{1}$, $S_{2}$ .. $S_{k}$ are the \texttt{K} partitions of data points that are assigned to the \texttt{K} centers, and $\mu_{i}$ is the value of the centroid vector for partition $S_{i}$. This value is also referred to as the within-cluster sum of squares (WCSS) or the loss for the particular clustering.
+Here $x_{1}$, $x_{2}$ ... $x_{n}$ is the set of observations in the form of multi-dimensional data points, $S_{1}$, $S_{2}$ .. $S_{k}$ are the \texttt{K} partitions of data points that are assigned to the \texttt{K} centers, and $\mu_{i}$ is the value of the centroid vector for partition $S_{i}$. This value is also referred to as the within-cluster sum of squares (WCSS) or the loss for the particular clustering\cite{MLIntro}.
 
 The K-Means clustering optimization problem is also known to be NP-hard, therefore  a common approach is to simply search for approximate solutions. There is a number of efficient heuristic algorithms that quickly converge to a local optimum. Two of the most frequently used ones are Lloyd's algorithm (called Iterative K-Means here due to its reliance on iterative processing of the input data) and Mini-batch K-Means. These two algorithms will be examined in more detail as they present a proven method for deriving a practical result from a clustering operation and are already implemented as part of the API of MLlib.
 
@@ -224,16 +224,29 @@ Finally, it is worth considering that most forms of K-Means clustering require t
 
 \section{Iterative K-Means Clustering}
 
-TODO: citations for previous section
-
-TODO: embedded pseudo-code
-
-Iterative K-Means Clustering, like all clustering algorithms, is a form of unsupervised machine learning.
+Iterative K-Means Clustering, like all clustering algorithms examined here, is a form of unsupervised machine learning.
 
 \begin{algorithm}
 \caption{Iterative K-Means}\label{iterative}
 \begin{algorithmic}[1]
-\State
+\State Given: \textit{k}, iterations \textit{t}, data set \textit{X}
+\State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
+\For {i = 1 to t}
+    \State v $\gets$ 0
+    \State nextC $\gets$ 0
+    \For {x $\in$ \textit{X}}
+        \State \textbf{n} $\gets$ \textit{closestCenterIndex}(\textit{C},x) \hspace{0.4cm} // Get the index of the center nearest to \textbf{x}
+        \State nextC[n] $\gets$ nextC[n] + x \hspace{1cm} // Add on the value of \textbf{x}
+        \State v[n] $\gets$ v[n] + 1 \hspace{2.4cm} // Update per-center count
+    \EndFor
+    \State \textbf{end for}
+    \For {\textit{c} $\in$ \textit{newC}}
+        \State \textit{c} $\gets \frac{\textit{c}}{v[\textit{c}]}$ \hspace{1cm} // Average the value of the new centers
+    \EndFor
+    \State \textbf{end for}
+    \State C $\gets$ newC \hspace{1.2cm} // Reasign the value of the centers
+\EndFor
+\State \textbf{end for}
 \end{algorithmic}
 \end{algorithm}
 
