@@ -224,7 +224,16 @@ Finally, it is worth considering that most forms of K-Means clustering require t
 
 \section{Iterative K-Means Clustering}
 
-Iterative K-Means Clustering, like all clustering algorithms examined here, is a form of unsupervised machine learning.
+Standard K-Means Clustering (Lloyd's algorithm), like all clustering algorithms examined here, is a form of unsupervised machine learning\cite{TopTen}. Its main  objective is to fit a set of cluster centers to the observed input data - both represented here as \textit{N}-dimensional data points. It achieves this through the use of an iterative refinement technique.
+
+Given an initial set of \textit{K} means and a specified value of \textit{t} iterations, the algorithm proceeds to alternate between two main phases:
+
+\begin{enumerate}
+\item \textbf{Assignment}: Each observation is assigned to the center of a cluster, such that the within-cluster sum of squares (WCSS) is minimized. Because the sum of squares is the squared Euclidean distance, the assigned centroid is the ``closest'' one.
+\item \textbf{Update}: Each centroid is updated to the value of the mean of all observations that were assigned to it. 
+\end{enumerate}
+
+These two phases are repeated \textit{t} times, providing a better heuristic answer after each iteration. Since the value of \textit{t} is defined prior to the start of the algorithm, it presents a clear quality for performance trade off. There is also a scenario where the values of the centroids will converge prior to the executions of all \textit{t} iterations. This is why most implementations of the algorithm include an optimization where if the values for the centroids are the same at the end of an iteration as they were at the star the algorithm will simply terminate. Another known optimization is to exploit triangular inequality to more efficiently compute the nearest centroid for each observed data point\cite{Triangle}. 
 
 \begin{algorithm}
 \caption{Iterative K-Means}\label{iterative}
@@ -250,9 +259,11 @@ Iterative K-Means Clustering, like all clustering algorithms examined here, is a
 \end{algorithmic}
 \end{algorithm}
 
+The fact that this algorithm needs to consider the whole set of data points multiple times limits its uses in regards to the quantity of data a user is willing to store. However, its execution does make it suitable for standard big data batch operations -- with the need to store and reload the data on every iteration being a major performance hindrance when using MapReduce.
+
 \section{Mini-batch K-Means Clustering}
 
-mini-batch text
+Mini-Batch K-Means clustering\cite{Mini}
 
 \begin{algorithm}
 \caption{Mini-batch K-Means}\label{mini-batch}
