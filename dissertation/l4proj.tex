@@ -14,7 +14,8 @@
 \usepackage{mathtools}
 \usepackage{subcaption}
 \usepackage{relsize}
-
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
 
 \hypersetup{
     colorlinks,
@@ -23,6 +24,10 @@
     linkcolor=black,
     urlcolor=black
 }
+
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
 
 \begin{document}
 \title{Implementations of Advanced K-Means Clustering Algorithms \\ for Spark/MLlib}
@@ -225,9 +230,40 @@ TODO: embedded pseudo-code
 
 Iterative K-Means Clustering, like all clustering algorithms, is a form of unsupervised machine learning.
 
+\begin{algorithm}
+\caption{Iterative K-Means}\label{iterative}
+\begin{algorithmic}[1]
+\State
+\end{algorithmic}
+\end{algorithm}
+
 \section{Mini-batch K-Means Clustering}
 
 mini-batch text
+
+\begin{algorithm}
+\caption{Mini-batch K-Means}\label{mini-batch}
+\begin{algorithmic}[1]
+\State Given: \textit{k}, mini-batch size \textit{b}, iterations \textit{t}, data set \textit{X}
+\State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
+\State v $\gets$ 0
+\For{\textit{i} = 1 to \textit{t} }
+    \State \textit{M} $\gets$ \textit{b} examples picked randomly from \textit{X} 
+    \For {x $\in$ \textit{M}}
+    	\State \textbf{d}[x] $\gets$ \textit{f}(\textit{C}, x) \hspace{1cm} // Cache the center nearest to \textbf{x}
+    \EndFor
+    \State \textbf{end for}
+    \For {x $\in$ \textit{M}}
+    	\State \textbf{c} $\gets$ \textbf{d}[x] \hspace{1.5cm} // Get cached center for this \textbf{x}
+        \State \textbf{v}[\textbf{c}] $\gets$ \textbf{v}[\textbf{c}] + 1 \hspace{0.5cm} // Update per-center counts
+        \State $\mu \gets \frac{1}{\textbf{v}[\textbf{c}]}$ \hspace{1.5cm} // Get per-center learning rate
+        \State \textbf{c} $\gets (1 - \mu)$\textbf{c} + $\mu$\textbf{x} \hspace{1cm} //Take gradient step
+   \EndFor
+   \State \textbf{end for}
+\EndFor
+\State \textbf{end for}
+\end{algorithmic}
+\end{algorithm}
 
 %==============================================================================
 
