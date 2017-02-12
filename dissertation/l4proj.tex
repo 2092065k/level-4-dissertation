@@ -293,14 +293,20 @@ Given an initial set of \textit{k} means and a considered mini-batch \textit{M},
 \end{algorithmic}
 \end{algorithm}
 
-This algorithm aims to provide an equal contribution, in regards to forming the centroids, for each observed point. However, because the data source could be a live stream where the centers of the logically formed clusters change over time, there is a proposed alteration to the algorithms that where older observations have a smaller, decaying impact on the locations of the centers in comparison to newer observations\cite{Non-Stationary}. This can be achieved by changing the learning rate to a constant in the range $\in (0,1)$.
+This algorithm aims to provide an equal contribution, in regards to forming the centroids, for each observed point. However, because the data source could be a live stream where the centers of the logically formed clusters change more substantially over time, there is a proposed alteration to the algorithm where older observations have a smaller, decaying impact on the locations of the centers in comparison to newer observations\cite{Non-Stationary}. This can be achieved by changing the learning rate to a constant in the range $\in (0,1)$.
 
 %==============================================================================
 
 \chapter{Previous Work in MLlib}
 \label{previous}
 
+Iterative (Standard) K-Means and Mini-batch K-Means are two of the clustering algorithms already available through the machine learning library (MLlib) of Apache Spark. To better discuss the design decisions taken when implementing the proposed extension to MLlib, this paper will cover the approach taken by the previous Spark developers, for creating scalable versions of the K-Means Clustering algorithms. The considered version of Spark is 2.1.0.
+
 \section{Implementation of Iterative K-Means Clustering}
+
+Standard K-Means was the first clustering algorithm supported by Spark. Along with providing a useful machine learning utility, due to its reliance on iteration, standard K-Means was used as an example to showcase the benefits of Spark's in-memory processing for iterative batch jobs, versus the popular Hadoop MapReduce framework. Results showed that in this use-case Spark was able to offer more than a 2X improvement\cite{Comparison}.
+
+In regards to the API for the RDD based implementation of standard K-Means, MLlib exposes only a few methods the user needs to interact with the system.
 
 \section{Implementation of Mini-batch K-Means Clustering}
 
