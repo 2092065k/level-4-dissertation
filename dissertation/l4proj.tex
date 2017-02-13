@@ -306,7 +306,32 @@ Iterative (Standard) K-Means and Mini-batch K-Means are two of the clustering al
 
 Standard K-Means was the first clustering algorithm supported by Spark. Along with providing a useful machine learning utility, due to its reliance on iteration, standard K-Means was used as an example to showcase the benefits of Spark's in-memory processing for iterative batch jobs, versus the popular Hadoop MapReduce framework. Results showed that in this use-case Spark was able to offer more than a 2X improvement\cite{Comparison}.
 
-In regards to the API for the RDD based implementation of standard K-Means, MLlib exposes only a few methods the user needs to interact with the system.
+\subsection{API details}
+
+In the RDD based implementation of standard K-Means, MLlib exposes only a few functions the user needs to interact with the system. Primarily this is the \texttt{train()} method. While this is an overloaded method with many implementations it generally accepts all the input parameters needed to run the standard K-Means algorithm:
+
+\begin{itemize}
+\item \texttt{data}: An RDD holding all observed data points -- each being represented by a vector
+\item \texttt{K}: The number of desired cluster centers
+\item \texttt{maxIterations}: The maximum number of passes on the input data the algorithm will perform
+\item \texttt{initializationMode}: A flag that determines the way the algorithm will select the initial value of the cluster centers
+\item \texttt{seed}: A variable used to seed random functions used by the algorithm
+\end{itemize}
+
+The return value of this method (the result of running the algorithm) is a \texttt{KMeansModel} object. The representation of this object is an array with \texttt{K} vectors, each holding the value of a cluster center. It is important to note that that the output of a clustering job is not a mapping from input points to which center they belong to, but rather simply the values of the specified \texttt{K} centers. In order to obtain a mapping, a user would need to run a subsequent job, using the \texttt{KMeansModel} object to create a collection of key -- value pairs.
+
+The \texttt{KMeansModel} object also includes the \texttt{computeCost} method which calculates the loss of a model (i.e. the Within-Cluster Sum of Squares), given a set of input data points. This can be performed on any collection of data points as a measurement of how suitable the model is for the particular dataset, however, it is usually ran with the same RDD of vectors used to train the model.
+
+Due to the fact that most clustering algorithms are merely trying to generate a set of centroids to fit against observed data points and that the WCSS is a reasonable performance measure for these algorithms the \texttt{KMeansModel} object is used as the output of all K-Means jobs.
+
+\subsection{Algorithm details}
+
+The operation performed by the \texttt{train()} method is to create an instance of the \texttt{KMeans} object (holding the implementation of the actual algorithm), to set the values of all the provided parameters and to call the \texttt{run()} method. The \texttt{run()} method in turn is used to only to transform the input data. 
+
+The provided information consisting of N-dimensional points are represented as \texttt{DenseVectors}\footnote{A \texttt{DenseVector} is a collection where the value of every dimension of the vector is represented by a \texttt{Double}. In contrast a \texttt{SparseVector} does not include information of dimensions with a value of zero and is therefore represented by a mapping from indices to values for every non-zero dimension.} in MLlib. However, this algorithms also aims to make use of the triangle inequality, to gain better performance when computing the nearest centroid to a given point\cite{Triangle}. To achieve this, the \texttt{run()} method computes the Euclidean norm for each point and zips the two collections together to form an RDD of \texttt{VectorWithNorm} objects.
+
+Finally the RDD of \texttt{VectorWithNorm} objects is passed to the \texttt{runAlgorithm()} method.
+
 
 \section{Implementation of Mini-batch K-Means Clustering}
 
