@@ -340,8 +340,23 @@ At each cluster node, operating on a partition of the RDD of \texttt{VectorWithN
 
 Once all of the points have been processed, each partition outputs a collection of tuples with the following three values: the index of a centroid, the value that was accumulated at the same index in the sums array of that partition and the number of point that were added up to create the value in the sums array (i.e. the value of the weights array at that index for the same partition). The first value of the tuple (the centroid index) is then used as a key to group the outputs of the different partitions -- all tuples with an identical first element create one tuple where its second and third elements are the result of summing those elements across all relevant tuples.
 
-Finally, the cluster centroids are updated by changing the value of each centroid at a particular index to the second element, divided by the third element of the tuple with a key (first element) equal to the index of that centroid. When reassigning each cluster center, the algorithm checks if the new value of the center is nearly equivalent to its previous value\footnote{The algorithm checks to see if the distance between the new and old value of the centroid is less than $epsion^2$, where $epsilon$ is a predefined value.}.  If this is the case for all cluster centers then the algorithm considers that the result has converged and terminates, even if not all user specified iterations over the data have been executed. The function output is a \texttt{KMeansModel} object, as discussed previously, generated from the final array of cluster centers.
+Finally, the cluster centroids are updated by changing the value of each centroid at a particular index to the second element, divided by the third element of the tuple with a key (first element) equal to the index of that centroid. When reassigning each cluster center, the algorithm checks if the new value of the center is nearly equivalent to its previous value\footnote{The algorithm checks to see if the distance between the new and old value of the centroid is less than $epsion^2$, where $epsilon$ is a predefined value.}.  If this is the case for all cluster centers then the algorithm considers that the result has converged and terminates, even if not all user specified iterations over the data have been executed. The function's output is a \texttt{KMeansModel} object, as discussed previously, generated from the final array of cluster centers.
 
+\begin{figure}[H]
+\centering
+\begin{minipage}{.5\textwidth}
+  \centering
+  \includegraphics[width=.7\linewidth]{images/DAG1}
+  \captionof{figure}{Iterative K-Means execution DAG}
+  \label{fig:test1}
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
+  \centering
+  \includegraphics[width=0.6\linewidth]{images/DAG2}
+  \captionof{figure}{K-Means++ execution DAG \\(the start of the DAG is identical to Iterative K-Means)}
+  \label{fig:test2}
+\end{minipage}
+\end{figure}
 
 \section{Implementation of Mini-batch K-Means Clustering}
 
