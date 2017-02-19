@@ -360,6 +360,33 @@ Finally, the cluster centroids are updated by changing the value of each centroi
 
 \section{Implementation of Mini-batch K-Means Clustering}
 
+Mini-batch K-Means or Streaming K-Means (as called in MLlib) aims to overcome the limitations of Standard K-Means in regards to storage, and provides the means to do real time data processing on live sources. It is an algorithm of particular interest, as its implementation is not only reliant on the core RDD based API of Spark, but it also utilizes Spark Streaming.
+
+Because Mini-batch K-Means does not function by performing multiple passes on the entirety of the data, it is only required that one mini-batch from the whole data is available when the new value of the cluster centers is computed for each iteration. This relieves the user from having to store the entirety of available data to execute the algorithm. The notion that only a small chunk of the data is needed at any one time can be further abstracted to the idea that the entirety of the data has not even been created yet, and that the latest acquired piece is simply a partial output of a live data producing source.
+
+For this reason Mini-batch K-Means was seen as a good example for implementing a machine learning algorithm that trains using real time data, obtained through Spark Streaming. A Spark application would monitor a stream (with data formated as N-dimensional data points) and between a specified time interval, collect all of the newly arrived points and process them as a single mini-batch.
+
+\subsection{API details}
+
+As was the case with Iterative K-Means the user exposed API of Streaming K-Means is fairly simple, however, there are a several notable differences that arise from the use of streams. Firstly, as opposed to simply calling a \texttt{train()} method and receiving a \texttt{KMeansModel} object, one needs to instantiate a \texttt{StreamingKMeans} object and then call a series of mutator methods to provide the input parameters to the algorithm and establish the initial state of the \texttt{K} centroids. These methods include:
+
+\begin{itemize}
+\item \texttt{setK()}: sets the number of cluster center
+\item \texttt{setDecayFactor()}: sets the forgetfulness of centroids
+\item \texttt{setHalfLife()}: sets the decay factor of centroids to $\exp(log(0.5) / halflife)$
+\item \texttt{setInitialCenters()}: allows the user to manually enter the initial values for the \texttt{K} centers along with their staring weights - good to use if there are strong indications of what the data distribution will be like or if the user has a previously trained model that they would like to place in a streaming environment
+\item \texttt{setRandomCenters()}: allows the user to specify specify the dimensions of the \texttt{K} centers, along with their starting weights and a seed. These parameters will be used to assign random initial centroids
+\end{itemize}
+
+The two alternatives for assigning the initial values of the \texttt{K} centroids are of particular interest. In contrast with the the implementation for standard K-Means there is no option to set the initial values of the centroids to randomly selected points from the input set, or to run any centroid selection algorithm. This could be because the developers assume that the data available in the first encountered mini-batch could be either too small or unrepresentative of the expected distribution of points as time progresses. In fact the option to set a large starting weight for the initial centroids can be used to mitigate the effect of poorly distributed initial mini-batches.
+
+Once all initialization has been completed, the algorithm can start executing by calling the \texttt{trainOn()} method and supplying an input discretized stream (\texttt{DStream}) of \texttt{Vector} objects. This method's implementation is to simply call the centroid updating algorithm for every RDD (mini-batch) produced by the DStream. After a certain amount of time has passed, or the stream has for some reasuon terminated, a user can inspect the latest value of the \texttt{K} centroids by calling the \texttt{latestModel()} method. Thus the final output of the Streaming K-Means algorithm is a \texttt{StreamingKMeansModel} object - similar to the \texttt{KMeansModel} returned by Iterative K-Means, however, here a user also has access to the final weights attached to each centroid.
+
+\subsection{Algorithm details}
+
+
+%TODO: Weaknesses exposed by the algorithm - poor initial rdd - poor initial center initialization 
+
 %==============================================================================
 
 \chapter{Proposed Extension to Spark/MLlib}
