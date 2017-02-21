@@ -334,7 +334,7 @@ Finally the RDD of \texttt{VectorWithNorm} objects is passed to the \texttt{runA
 
 Alternatively, the centroids could be initialized by running the K-Means++ algorithm\cite{PlusPlus}. When K-Means++ is ran on a given dataset, it tries to find dissimilar cluster centers -- it starts with a random center and then performs passes where more centers are chosen with a proportional probability to the squared distance to their current cluster set. This method is far more expensive than the random initialization as it involves effectively running two separate algorithms on the data one after another. However, it is more likely that the final result will be of greater quality as it is likely to avoid some of the pitfalls related to poor centroid initialization. One way to mitigate this issue would be to run the K-Means++ algorithms on a small sample of the observed data, with a similar distribution, although the current API does not provide this option.
 
-Once the values of the centroid vectors have been set, the algorithm begins its firs of \texttt{maxIterations} passes on the data (the loop is also terminated if the centroids converge -- i.e. when an iteration of the algorithm has no effect on the location of the \texttt{K} centers). At the star of the, broadcast variables for the current values of the centroids and a cost accumulator (used for logging) are created, so that they can be more efficiently used by different processing nodes. The rest of the algorithm is implemented by partitioning the set of input points and mapping an identical sequential operation across all the created partitions. 
+Once the values of the centroid vectors have been set, the algorithm begins its first of \texttt{maxIterations} passes on the data (the loop is also terminated if the centroids converge -- i.e. when an iteration of the algorithm has no effect on the location of the \texttt{K} centers). At the star of the, broadcast variables for the current values of the centroids and a cost accumulator (used for logging) are created, so that they can be more efficiently used by different processing nodes. The rest of the algorithm is implemented by partitioning the set of input points and mapping an identical sequential operation across all the created partitions. 
 
 At each cluster node, operating on a partition of the RDD of \texttt{VectorWithNorm} objects, the value of the centroids is retrieved from the previously cerated broadcast variable. Two blank arrays with a size equal to \texttt{K} are also created -- an array of sums for adding the values of observed point that ``attach'' to a particular centroid, and an array of weights for tracking how many points have ``attached'' to each centroid. Then, for each point in the partition, the closest centroid to that point is computed. The \texttt{findClosest()} helper method takes the processed point and array of center values and returns the index of the closest center in the array along with the distance to it. This is the method that required the input data to be converted to \texttt{VectorWithNorm} objects so that it can  make use of the triangle inequality optimization to compute the closest center faster\cite{Triangle}. After the index of the nearest centroid has been retrieved, the value of the weights array at that index is incremented, the values of each dimension of the considered point are added to the dimensions of the \texttt{Vector} object at the same index of the sums array and the distance between the centroid and the point is added to the accumulator.
 
@@ -348,13 +348,13 @@ Finally, the cluster centroids are updated by changing the value of each centroi
   \centering
   \includegraphics[width=.7\linewidth]{images/DAG1}
   \captionof{figure}{Iterative K-Means execution DAG}
-  \label{fig:test1}
+  \label{fig:dag1}
 \end{minipage}%
 \begin{minipage}{.5\textwidth}
   \centering
   \includegraphics[width=0.6\linewidth]{images/DAG2}
   \captionof{figure}{K-Means++ execution DAG \\(the start of the DAG is identical to Iterative K-Means)}
-  \label{fig:test2}
+  \label{fig:dag2}
 \end{minipage}
 \end{figure}
 
@@ -380,12 +380,42 @@ As was the case with Iterative K-Means the user exposed API of Streaming K-Means
 
 The two alternatives for assigning the initial values of the \texttt{K} centroids are of particular interest. In contrast with the the implementation for standard K-Means there is no option to set the initial values of the centroids to randomly selected points from the input set, or to run any centroid selection algorithm. This could be because the developers assume that the data available in the first encountered mini-batch could be either too small or unrepresentative of the expected distribution of points as time progresses. In fact the option to set a large starting weight for the initial centroids can be used to mitigate the effect of poorly distributed initial mini-batches.
 
-Once all initialization has been completed, the algorithm can start executing by calling the \texttt{trainOn()} method and supplying an input discretized stream (\texttt{DStream}) of \texttt{Vector} objects. This method's implementation is to simply call the centroid updating algorithm for every RDD (mini-batch) produced by the DStream. After a certain amount of time has passed, or the stream has for some reasuon terminated, a user can inspect the latest value of the \texttt{K} centroids by calling the \texttt{latestModel()} method. Thus the final output of the Streaming K-Means algorithm is a \texttt{StreamingKMeansModel} object - similar to the \texttt{KMeansModel} returned by Iterative K-Means, however, here a user also has access to the final weights attached to each centroid.
+Once all initialization has been completed, the algorithm can start executing by calling the \texttt{trainOn()} method and supplying an input discretized stream (\texttt{DStream}) of \texttt{Vector} objects. This method's implementation is to simply call the centroid updating algorithm for every RDD (mini-batch) produced by the DStream. After a certain amount of time has passed, or the stream has for some reasuon terminated, a user can inspect the latest value of the \texttt{K} centroids by calling the \texttt{latestModel()} method. Thus the final output of the Streaming K-Means algorithm is a \texttt{StreamingKMeansModel} object -- similar to the \texttt{KMeansModel} returned by Iterative K-Means, however, here a user also has access to the final weights attached to each centroid.
 
 \subsection{Algorithm details}
 
+Streaming K-Means functions primarily by making periodic updates to its \texttt{model} variable. It is an object of type \texttt{StreamingKMeansModel} -- a child inheriting from \texttt{KMeansModel} that also includes an array of weights for each of the \texttt{K} centers, along with an \texttt{update()} method. The \texttt{update()} method is responsible for changing the values of the \texttt{model} variable by operating on a single mini-batch -- to achieve this the program makes a call to \texttt{update()} from the \texttt{trainOn()} method for each RDD obtained from the DStream.
 
-%TODO: Weaknesses exposed by the algorithm - poor initial rdd - poor initial center initialization 
+The \texttt{update()} function, invoked with an RDD of \texttt{Vector} objects, begins by using the input data to create an RDD of tuples with the following form (\texttt{closestCenterIndex}, (\texttt{originalPoint}, \texttt{1})). It then defines a \texttt{mergeContribs} function which takes two tuples of the form (\texttt{Vector}, \texttt{Long}) and produces another tuple with elements equal to the sum of the respective elements in the input tuples. The \texttt{aggregateByKey()} transformation is then invoked on the RDD of tuples with a (\texttt{tvectorOfZeroes}, \texttt{0}) tuple as a starting value for each aggregated group and the \texttt{mergeContibs} function as a combining operation. This in effect sums the value of all points ``attached'' to a particular centroid and counts how many there are. Before changing the values of the existing centroids, however, a discount is applied to the weights array, allowing the algorithm to diminish the impact of old observations.
+
+Using the produced array of \texttt{K} tuples, each centroid corresponding to a tuple is updated as follows:
+
+\begin{center}
+\begin{BVerbatim}
+lambda = numberOfSummedPoints / currentCentroidrWeight
+contributionVector = contributionVector * lambda
+currentCentroid = currentCentroid * (currentCentroidWeight - 1)
+cuccentCentroid = currentCentroid + contibutionVector
+\end{BVerbatim}
+\end{center}
+
+As a final step the algorithm computes whether the cluster center with smallest weight is dying -- i.e. its weight is more than $10^8$ time smaller than the weight the the largest cluster. If this is the case the largest cluster is split in two and the centroid of the smallest cluster is destroyed.
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{.5\textwidth}
+  \centering
+  \includegraphics[width=.75\linewidth]{images/DAG3}
+  \captionof{figure}{Streaming K-Means execution DAG}
+  \label{fig:dag3}
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
+  \centering
+  \includegraphics[width=0.29\linewidth]{images/DAG4}
+  \captionof{figure}{KMeansModel computing WCSS DAG}
+  \label{fig:gag4}
+\end{minipage}
+\end{figure}
 
 %==============================================================================
 
