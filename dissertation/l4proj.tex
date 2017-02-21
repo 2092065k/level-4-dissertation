@@ -422,7 +422,29 @@ As a final step the algorithm computes whether the cluster center with smallest 
 \chapter{Proposed Extension to Spark/MLlib}
 \label{propose}
 
+One of the main drawbacks of the Iterative (standard) K-Means algorithm is its reliance on  multiple passes over a the entirety of observed data. It does this in an attempt to minimize the Within-Cluster Sum of Squares (WCSS) value -- i.e. the loss of the resulting model of \texttt{K} centroids, however, it is also prone to get stuck in local maximums. Therefore its execution has the potential to incur a massive performance overhead, while offering little in added quality.
+
+This paper covers a variety of possible alternative \textit{Online} clustering algorithms that, through performing a single pass over the provided data, can produce models that sacrifice little in terms of quality, but offer a substantial boost in performance. Certain approaches can overcome additional limitations of Standard K-Means, such as having to manually select a value for \texttt{K} without knowing how many logical centers the data might contain. These algorithms will first be examined from a mathematical perspective.
+
 \section{Online K-Means}
+
+One of the most basic forms of clustering that rely on a single pass of the observed data is Lloyd's Online K-Means algorithm.
+
+\begin{algorithm}
+\caption{Online K-Means}\label{online-alg}
+\begin{algorithmic}[1]
+\State Given: \textit{k}, data set \textit{X}
+\State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
+\State Initialize counters $n_{1}, n_{2} ... n_{k}$ with a zero value
+\For {\textit{x} $\in$ \textit{X}}
+    \State \textbf{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
+    \State \textbf{z}  $\gets$ C[i] \hspace{2.25cm} // Get the closest center
+    \State n[i] $\gets$ n[i] + 1 \hspace{1.3cm} // Update the number of point in this cluster
+    \State \textbf{z} $\gets$ z + $\frac{1}{n[i]}$ * (x - z) \hspace{0.35cm} // Update the cluster center
+\EndFor
+\State \textbf{end for}
+\end{algorithmic}
+\end{algorithm}
 
 \section{Adaptive Resonance Theory K-Means}
 
