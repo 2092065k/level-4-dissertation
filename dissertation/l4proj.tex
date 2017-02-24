@@ -471,6 +471,37 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 
 \section{Adaptive Resonance Theory K-Means}
 
+% TODO: overcome weakness of choosing K manually
+
+\begin{figure}[H]
+	\centering
+    \label{artGraph}
+    \includegraphics[width=0.65\textwidth]{images/Graph2}
+    \caption{The distance from $x^a$ to the closest center is less than the vigilance $\rho$ -- the center is updated in the same way as Online K-Means. $X^b$ is not close enough to any of the centers and so a new centroid should be created at its position.} 
+\end{figure}
+
+\begin{algorithm}
+\caption{ART K-Means}\label{art-alg}
+\begin{algorithmic}[1]
+\State Given: a vigilance value $\rho$, data set \textit{X}
+\State Initialize one \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
+\State Initialize a single counter $n_{1}$ with a value of zero
+\For {\textit{x} $\in$ \textit{X}}
+    \State \textbf{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
+    \State \textbf{z}  $\gets$ C[i] \hspace{2.35cm} // Get the closest center
+    \State \textbf{d} $\gets$ \textit{getDistance(x, z)} \hspace{0.3cm} // Get the distance between the point and its nearest center
+    \If {$d < \rho$}
+        \State n[i] $\gets$ n[i] + 1 \hspace{1.3cm} // Update the number of point in this cluster
+        \State \textbf{z} $\gets$ z + $\frac{1}{n[i]}$ * (x - z) \hspace{0.35cm} // Update the cluster center
+    \Else
+        \State \textit{C} $\gets$ \textit{C} + \textit{x} \hspace{0.55cm} // Create a new center with a value equal to the observed point
+        \State $n_k$ $\gets$ 1 \hspace{1cm} // Create a counter for the new center with a weight of one
+    \EndIf
+\EndFor
+\State \textbf{end for}
+\end{algorithmic}
+\end{algorithm}
+
 \section{Self-Organizing Maps K-Means}
 
 \section{Benefits of Online Algorithms}
@@ -495,7 +526,11 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 
 \section{Implementation Using Spark Streaming}
 
+% TODO: talk about normalization of space 
 % TODO: write about first center combiner its problems and the solution
+% TODO: graphs of extra centers made between partitions
+% TODO: picture of full space vs unit hypercube
+% TODO: algorithm of combining centers
 
 %==============================================================================
 
@@ -509,10 +544,10 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 \chapter{Performance Evaluation and Data Model Analysis}
 \label{eval}
 
-maybe add an evaluation section earlier to each part\\
-add chapter comparing algorithms at the end\\
-both would need to explain evaluation method earlier\\
-make a reference to the used training data
+% TODO maybe add an evaluation section earlier to each part\\
+% add chapter comparing algorithms at the end\\
+% both would need to explain evaluation method earlier\\
+% make a reference to the used training data
 
 \section{Sum of Squared Distances}
 
