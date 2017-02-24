@@ -428,7 +428,30 @@ This paper covers a variety of possible alternative \textit{Online} clustering a
 
 \section{Online K-Means}
 
-One of the most basic forms of clustering that rely on a single pass of the observed data is Lloyd's Online K-Means algorithm.
+One of the most basic forms of clustering that rely on a single pass of the observed data is Lloyd's Online K-Means algorithm. As is the case with the previously discussed algorithms, Online K-Means is a competitive learning algorithm, where, for each point belonging to a given input set, the \texttt{K} centroids compete to have that point ``attach'' to them -- the winner being decided based on which centroid is closest at the time the point is being considered\cite{MLIntro}. All of this serves to reduce the WCSS value.
+
+A distinct aspect of Online clustering algorithms that is exemplified by Lloyd's Online algorithm is how every observed point has an immediate impact on its closest centroid. In the previous case of Iterative K-Means, the closest center for each observed point is calculated without making adjustments to the locations of the centroids, which are later resigned to the average of all observed points that belong to the cluster they define. Here, upon encountering an input point and calculating which cluster it should belong to, the centroid of that cluster is immediately moved in the direction of the observed point, before considering the next one.
+
+The amount of change a ``winning'' centroid experiences when encountering a new point is determined by the learning rate -- often depicted as $\mu$. In the original version of Lloyd's algorithm, the learning rate is expressed as the reciprocal of the number of points that had previously ``attached'' to a given centroid -- the wight of that centroid. 
+
+\begin{center}
+\begin{BVerbatim}
+newCenter = oldCenter + learningRate * (observedPoint - oldCenter)
+\end{BVerbatim}
+\end{center}
+
+It is clear to see that with with a learning rate of 0, the center value would not change at all, and with a learning rate on 1, the new value of the center is the same as the observed point (i.e. 100\% of the value of that center is learned from the most recent point). Therefore, because Lloyd defines learning rate as 1/\textit{centerWeight}, as our input stream of data continues, each new encountered point will have a smaller and smaller impact on its closest centroid.
+
+A possible alternative is to set the learning rate to a constant in the range $\in$ (0,1). This approach allows the algorithm to gradually forget the effects of older observed points, which lets it adjust better to the most recently formed logical centers.
+
+\begin{figure}[H]
+	\centering
+    \label{onlineGraph}
+    \includegraphics[width=0.65\textwidth]{images/Graph1}
+    \caption{The empty circles are the centers and the black circle is an observed point. Online K-Means moves the closest center towards the direction of ($x-c_i$) by a factor of $\mu$} 
+\end{figure}
+
+It is also important to note that Online K-Means is quite sensitive to the initial values of the \texttt{K} centroids. Because of its method of operation, if the centroids were cerated with poor starting values (e.g. two of the centroids being fairly close to one another), the final result could differ based on the order in which the points were observed.
 
 \begin{algorithm}
 \caption{Online K-Means}\label{online-alg}
@@ -461,6 +484,8 @@ One of the most basic forms of clustering that rely on a single pass of the obse
 
 \section{Implementation Using Grand Mean}
 
+% TODO: write about first center combiner its problems and the solution
+
 \section{Implementation using Spark Streaming}
 
 %==============================================================================
@@ -469,6 +494,8 @@ One of the most basic forms of clustering that rely on a single pass of the obse
 \label{art}
 
 \section{Implementation Using Spark Streaming}
+
+% TODO: write about first center combiner its problems and the solution
 
 %==============================================================================
 
