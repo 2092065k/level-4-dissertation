@@ -432,7 +432,7 @@ One of the most basic forms of clustering that rely on a single pass of the obse
 
 A distinct aspect of Online clustering algorithms that is exemplified by Lloyd's Online algorithm is how every observed point has an immediate impact on its closest centroid. In the previous case of Iterative K-Means, the closest center for each observed point is calculated without making adjustments to the locations of the centroids, which are later resigned to the average of all observed points that belong to the cluster they define. Here, upon encountering an input point and calculating which cluster it should belong to, the centroid of that cluster is immediately moved in the direction of the observed point, before considering the next one.
 
-The amount of change a ``winning'' centroid experiences when encountering a new point is determined by the learning rate -- often depicted as $\mu$. In the original version of Lloyd's algorithm, the learning rate is expressed as the reciprocal of the number of points that had previously ``attached'' to a given centroid -- the wight of that centroid. 
+The amount of change a ``winning'' centroid experiences when encountering a new point is determined by the learning rate -- often depicted as $\eta$. In the original version of Lloyd's algorithm, the learning rate is expressed as the reciprocal of the number of points that had previously ``attached'' to a given centroid -- the wight of that centroid. 
 
 \begin{center}
 \begin{BVerbatim}
@@ -448,7 +448,7 @@ A possible alternative is to set the learning rate to a constant in the range $\
 	\centering
     \label{onlineGraph}
     \includegraphics[width=0.65\textwidth]{images/Graph1}
-    \caption{The empty circles are the centers and the black circle is an observed point. Online K-Means moves the closest center towards the direction of ($x-c_i$) by a factor of $\mu$} 
+    \caption{The empty circles are the centers and the black circle is an observed point. Online K-Means moves the closest center towards the direction of ($x-c_i$) by a factor of $\eta$.} 
 \end{figure}
 
 It is also important to note that Online K-Means is quite sensitive to the initial values of the \texttt{K} centroids. Because of its method of operation, if the centroids were cerated with poor starting values (e.g. two of the centroids being fairly close to one another), the final result could differ based on the order in which the points were observed.
@@ -460,7 +460,7 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 \State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
 \State Initialize counters $n_{1}, n_{2} ... n_{k}$ with a zero value
 \For {\textit{x} $\in$ \textit{X}}
-    \State \textbf{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
+    \State \textit{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
     \State \textbf{z}  $\gets$ C[i] \hspace{2.25cm} // Get the closest center
     \State n[i] $\gets$ n[i] + 1 \hspace{1.3cm} // Update the number of point in this cluster
     \State \textbf{z} $\gets$ z + $\frac{1}{n[i]}$ * (x - z) \hspace{0.35cm} // Update the cluster center
@@ -493,7 +493,7 @@ The \textit{vigilance} value used in ART K-Means effectively defines a hypersphe
 \State Initialize one \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
 \State Initialize a single counter $n_{1}$ with a value of zero
 \For {\textit{x} $\in$ \textit{X}}
-    \State \textbf{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
+    \State \textit{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
     \State \textbf{z}  $\gets$ C[i] \hspace{2.35cm} // Get the closest center
     \State \textbf{d} $\gets$ \textit{getDistance(x, z)} \hspace{0.3cm} // Get the distance between the point and its nearest center
     \If {$d < \rho$}
@@ -512,9 +512,43 @@ ART K-Means does not entirely solve the issue of specifying an initial number of
 
 \section{Self-Organizing Maps K-Means}
 
+In the competitive clustering algorithms looked at so far
+
+% TODO: add \cite{SOM} somewhere
+
+\begin{figure}[H]
+	\centering
+    \label{somGraph}
+    \includegraphics[width=0.65\textwidth]{images/Graph3}
+    \caption{In the SOM, the closest center and its neighbors (in terms of indices) are all moved towards the observed point. Here the neighborhood is of size 1 and the 1-nearest neighbors are updated. Even if the neighbors are not close to each other, as they continue to influence each others locations, they will also become neighbors in the input space.} 
+\end{figure}
+
+\begin{algorithm}
+\caption{SOM K-Means}\label{som-alg}
+\begin{algorithmic}[1]
+\State Given: dimension of neuron lattice \textit{M}, neighborhood size \textit{H},
+\State \hspace{1.1cm} tuning parameter $\sigma$, learning rate $\eta$, data set \textit{X}
+\State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
+\For {\textit{x} $\in$ \textit{X}}
+    \State \textit{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
+    \State \textbf{z}  $\gets$ C[i] \hspace{3.85cm} // Get the winning neuron's index
+    \State \textbf{z} $\gets$ z + $\eta$ * (x - z) \hspace{2.35cm} // Update the winning neuron
+    \State \textbf{N} $\gets$ getNeighborNeurons(C, H) \hspace{0.1cm} // Get all neurons in the neighborhood of the winner
+    \For {n $\in$ N}
+        \State \textit{d} $\gets$ getDistance(n, z) \hspace{1.3cm} // Calculate distance to the winner neuron
+        \State \textit{impact} $\gets$ $\exp(\sigma * d^2)$ \hspace{1.15cm} // Calculate the impact of the neighborhood
+        \State \textbf{n} $\gets$ n + \textit{impact} * $\eta$ * (x - n) \hspace{0.3cm} // Update the neighboring neuron
+    \EndFor
+    \State \textbf{end for}
+\EndFor
+\State \textbf{end for}
+\end{algorithmic}
+\end{algorithm}
+
 \section{Benefits of Online Algorithms}
 
 \section{Implementation Challenge in Parallelizing Sequential Algorithms}
+% TODO: change section title
 
 %==============================================================================
 
