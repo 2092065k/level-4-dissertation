@@ -471,7 +471,11 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 
 \section{Adaptive Resonance Theory K-Means}
 
-% TODO: overcome weakness of choosing K manually
+In all of the clustering algorithms looked at so far a user specified value of \texttt{K} needed to be provided, before processing the available data. An expensive operation to determine a suitable \texttt{K} would be to run such an algorithm multiple times with different values of \texttt{K} and compare the resulting WCSS values of output models. This method, however, is not entirely reliable as the algorithm's intent is to find logical groups within the data, where as the value of WCSS (the loss of the produced model) will keep decreasing as \texttt{K} increases, and there is no clear indicator for when to stop\cite{LearnK}.
+
+An alternative approach would be to incrementally discover a suitable value for \texttt{K} -- i.e. start with a single centroid and add more as they are needed. The Adaptive Resonance Theory (ART) algorithm\cite{ART} is one such example. In the case of ART, instead of requiring a set value for how many centroids will be trained, the algorithm takes as input a threshold value called a \textit{vigilance} (specifying a Euclidean distance in this case). 
+
+Thus ART K-Means begins by assigning a single centroid to have the same initial value as a point, randomly selected from the input set. Then, for each new processed point, the nearest available centroid is identified (there will be only one at the start). If the distance between the observation and its closest centroid is less than the specified vigilance, the respective cluster center will be updated in the same manner as Online K-Means (Algorithm \ref{online-alg}). If the distance is greater than the vigilance, however, an new centroid is created at the location of the examined point.
 
 \begin{figure}[H]
 	\centering
@@ -480,7 +484,9 @@ It is also important to note that Online K-Means is quite sensitive to the initi
     \caption{The distance from $x^a$ to the closest center is less than the vigilance $\rho$ -- the center is updated in the same way as Online K-Means. $X^b$ is not close enough to any of the centers and so a new centroid should be created at its position.} 
 \end{figure}
 
-\begin{algorithm}
+The \textit{vigilance} value used in ART K-Means effectively defines a hypersphere around each centroid. Therefore, any new point that does not fall within the boundaries of an existing hypersphere creates a new one. This results in the partitioning of the examined N-dimensional space and sets a clear boundary for the region occupied by any given cluster. 
+
+\begin{algorithm}[H]
 \caption{ART K-Means}\label{art-alg}
 \begin{algorithmic}[1]
 \State Given: a vigilance value $\rho$, data set \textit{X}
@@ -501,6 +507,8 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 \State \textbf{end for}
 \end{algorithmic}
 \end{algorithm}
+
+ART K-Means does not entirely solve the issue of specifying an initial number of centroids but rather shifts the problem to choosing an optimal \textit{vigilance} value. Because it is possible to identify the extremes of any of the dimensions of the input points, however, one can adjust the vigilance to partition the observed space into a set number of equally sized hyperspheres. This overcomes a different weakness of traditional clustering algorithms, where the initial values of the \texttt{K} centroids could be insufficiently dissimilar (e.g. two centroids starting off at nearly identical coordinates).
 
 \section{Self-Organizing Maps K-Means}
 
@@ -544,10 +552,12 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 \chapter{Performance Evaluation and Data Model Analysis}
 \label{eval}
 
-% TODO maybe add an evaluation section earlier to each part\\
+% TODO: maybe add an evaluation section earlier to each part\\
 % add chapter comparing algorithms at the end\\
 % both would need to explain evaluation method earlier\\
 % make a reference to the used training data
+
+% TODO: talk about silhouette - include pseudo code and picture 
 
 \section{Sum of Squared Distances}
 
@@ -558,7 +568,7 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 \chapter{Conclusion}
 \label{conclusion}
 
-conclusion text - multiple sections?
+% TODO: conclusion text - multiple sections?
 
 %==============================================================================
 
