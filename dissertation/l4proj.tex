@@ -16,6 +16,14 @@
 \usepackage{relsize}
 \usepackage{algorithm}
 \usepackage[noend]{algpseudocode}
+\usepackage{listings}
+\usepackage[utf8]{inputenc}
+\usepackage{fancybox}
+
+\lstset{
+  basicstyle=\ttfamily,
+  mathescape
+}
 
 \hypersetup{
     colorlinks,
@@ -24,6 +32,13 @@
     linkcolor=black,
     urlcolor=black
 }
+
+\makeatletter
+\newenvironment{CenteredBox}{
+\begin{Sbox}}{
+\end{Sbox}\centerline{\parbox{\wd\@Sbox}{\TheSbox}}}
+\makeatother
+
 
 \makeatletter
 \def\BState{\State\hskip-\ALG@thistlm}
@@ -512,9 +527,33 @@ ART K-Means does not entirely solve the issue of specifying an initial number of
 
 \section{Self-Organizing Maps K-Means}
 
-In the competitive clustering algorithms looked at so far
+All of the competitive clustering algorithms looked at so far have taken a ``winner take all'' approach -- i.e. for every new observed point, only the centroid closest to it experiences change. However, in an online learning environment where the model needs to adapt to a constant stream of new data, that is likely to alter its distribution over time, it is possible to encounter ``dead'' centroids.
 
-% TODO: add \cite{SOM} somewhere
+For example, consider at time $t_0$ Online K-Means is run on a continuous data source that provides a distribution with three logical groups. If the state of the model were to be probed at time $t_1$ then (assuming a suitable initialization) it would correctly consist of three centroids that identify the different groups. If at time $t_2$, however, the data source stopped producing output that belongs to one of the groups (the group has ``died'') and the state of the model were to be probed afterwards, it would continue to indicate that the data consists of three distinct clusters.
+
+A way to avoid dead centers is to update not only the winner, but also a few additional centroids. In the Self-Organizing Map (SOM) each cluster center is assigned an index, which defines a neighborhood of centroids\cite{SOM} -- in this context also called neurons. When $c_i$ is the closest center to an observed point, the neighbors of $c_i$ are also moved. If the neighborhood is of size 2, then $c_{i-2}, c_{i-1}, c_i, c_{i+1}, c_{i+2}$ are all adjusted, but with less weight as the neighborhood increases.
+
+In the case of SOM K-Means each neuron is updated with respect to ``the impact of the neighborhood''. It is defined as a Gaussian function of the Euclidean distance of the locations of the neurons in the neighborhood -- two neighboring neurons \texttt{A} and \texttt{B} the impact is:  $h(A,B) = \exp(-\sigma*distance(A, B)^2)$. Thus if $W^{\prime}$ is the closest center to an observed point \textit{X} then all neurons \textit{W} in the neighborhood are updated by the formula:
+
+\begin{figure}[H]
+\begin{CenteredBox}
+  \begin{lstlisting}
+    $W = W + h(W^{\prime},W)*\eta*(X-W)$
+  \end{lstlisting}
+\end{CenteredBox}
+\end{figure}
+
+It is clear to see that when it comes to updating the ``winner'' himself, the impact function will evaluate to 1 (the distance between the winner and himself is 0) and the formula will become:
+
+\begin{figure}[H]
+\begin{CenteredBox}
+  \begin{lstlisting}
+    $W = W + \eta*(X-W)$
+  \end{lstlisting}
+\end{CenteredBox}
+\end{figure}
+
+This is identical to the update step used in Lloyd's Online K-Means algorithms, as well as ART K-Means when the observed point falls within an existing hypersphere.
 
 \begin{figure}[H]
 	\centering
@@ -523,7 +562,23 @@ In the competitive clustering algorithms looked at so far
     \caption{In the SOM, the closest center and its neighbors (in terms of indices) are all moved towards the observed point. Here the neighborhood is of size 1 and the 1-nearest neighbors are updated. Even if the neighbors are not close to each other, as they continue to influence each others locations, they will also become neighbors in the input space.} 
 \end{figure}
 
-\begin{algorithm}
+In SOM K-Means, because neighboring neurons are also moved towards the input, dead centroids are avoided, as they will eventually win a competition, after being consistently adjusted by the previous winners. This is highly desirable in an online learning environment, as the underlying model will consistently reflect the present state of the data distribution.
+
+It is also important to consider that neighboring centroids by indices need not necessarily be physical neighbors in the input space. Typically, the starting value of each centroid will be randomly chosen and their proximity in indices will not reflect their Euclidean distance. As the model is trained, however, because the winning centroid and its neighbors are all influenced together by the same input, after the algorithm converges, centroids with neighboring indices will also be neighbors in the input space.
+
+While this illustrates the operational model of SOM, most applications that utilize this approach introduce an additional layer of complexity by organizing the neurons in a two-dimensional map. In this scenario, each neuron has two indices (row and column) which represent its location on a 2-D lattice. Here, the neighborhood of a neuron is also defined in two dimensions -- a neighborhood of size one refers to all adjacent neurons in the lattice, while size two would refer to every neuron in a 5x5 lattice centered on the winner (every neuron reachable by two or less hops). If the winning centroid happens to be a member of the left most column, its left side neighbors are the members of the right most column of the lattice -- it functions as a torus.
+% TODO: hew we use a 2D lattice which maps N dimensions to 2D
+
+\begin{figure}[H]
+	\centering
+    \label{somLattice}
+    \includegraphics[width=0.5\textwidth]{images/lattice}
+    \caption{A 5x5 SOM lattice of neurons with a neighborhood of size one. Here the central neuron is closest to the observation. This updates its value along with all of its neighbors.} 
+\end{figure}
+
+After the locations of the neurons have converged, the resulting 2-D lattice will represent a \textit{topological map} of the original N-dimensional input space. The map will contain several neurons in parts of the space where there was a high density of observations, and no neurons in places that didn't have any input data. Because of this, the map can be interpreted as doing a nonlinear form of multidimensional scaling, which maps from the original N-dimensional space to two dimensions\cite{MLIntro}. Furthermore, if the map is one-dimensional (as originally discussed), the neurons are placed on the curve of maximum density in the input space -- i.e. a \textit{principal curve}\cite{SOM}.
+
+\begin{algorithm}[H]
 \caption{SOM K-Means}\label{som-alg}
 \begin{algorithmic}[1]
 \State Given: dimension of neuron lattice \textit{M}, neighborhood size \textit{H},
@@ -546,6 +601,8 @@ In the competitive clustering algorithms looked at so far
 \end{algorithm}
 
 \section{Benefits of Online Algorithms}
+
+
 
 \section{Implementation Challenge in Parallelizing Sequential Algorithms}
 % TODO: change section title
