@@ -34,7 +34,9 @@ minimize the mean squared distance from all points to  their  respective  cluste
 
 Rebuilding project: build/mvn -DskipTests clean package
 
-Create a distribution: ./dev/make-distribution.sh --name custom-spark --tgz -DskipTests
+Create a local distribution: ./dev/make-distribution.sh --name custom-spark --tgz -DskipTests
+
+Create a disribution on the cluster: ./dev/make-distribution.sh --name custom-spark --tgz -Phadoop-2.6 -Phive -Phive-thriftserver -Pyarn -DskipTests
 
 Launch shell: ./bin/spark-shell
 
