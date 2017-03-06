@@ -437,7 +437,7 @@ As a final step the algorithm computes whether the cluster center with smallest 
 \chapter{Proposed Extension to Spark/MLlib}
 \label{propose}
 
-One of the main drawbacks of the Iterative (standard) K-Means algorithm is its reliance on  multiple passes over a the entirety of observed data. It does this in an attempt to minimize the Within-Cluster Sum of Squares (WCSS) value -- i.e. the loss of the resulting model of \texttt{K} centroids, however, it is also prone to get stuck in local maximums. Therefore its execution has the potential to incur a massive performance overhead, while offering little in added quality.
+One of the main drawbacks of the Iterative (standard) K-Means algorithm is its reliance on  multiple passes over the entirety of observed data. It does this in an attempt to minimize the Within-Cluster Sum of Squares (WCSS) value -- i.e. the loss of the resulting model of \texttt{K} centroids, however, it is also prone to get stuck in local maximums. Therefore its execution has the potential to incur a massive performance overhead, while offering little in added quality.
 
 This paper covers a variety of possible alternative \textit{Online} clustering algorithms that, through performing a single pass over the provided data, can produce models that sacrifice little in terms of quality, but offer a substantial boost in performance. Certain approaches can overcome additional limitations of Standard K-Means, such as having to manually select a value for \texttt{K} without knowing how many logical centers the data might contain. These algorithms will first be examined from a mathematical perspective.
 
@@ -567,7 +567,6 @@ In SOM K-Means, because neighboring neurons are also moved towards the input, de
 It is also important to consider that neighboring centroids by indices need not necessarily be physical neighbors in the input space. Typically, the starting value of each centroid will be randomly chosen and their proximity in indices will not reflect their Euclidean distance. As the model is trained, however, because the winning centroid and its neighbors are all influenced together by the same input, after the algorithm converges, centroids with neighboring indices will also be neighbors in the input space.
 
 While this illustrates the operational model of SOM, most applications that utilize this approach introduce an additional layer of complexity by organizing the neurons in a two-dimensional map. In this scenario, each neuron has two indices (row and column) which represent its location on a 2-D lattice. Here, the neighborhood of a neuron is also defined in two dimensions -- a neighborhood of size one refers to all adjacent neurons in the lattice, while size two would refer to every neuron in a 5x5 lattice centered on the winner (every neuron reachable by two or less hops). If the winning centroid happens to be a member of the left most column, its left side neighbors are the members of the right most column of the lattice -- it functions as a torus.
-% TODO: hew we use a 2D lattice which maps N dimensions to 2D
 
 \begin{figure}[H]
 	\centering
@@ -602,10 +601,17 @@ After the locations of the neurons have converged, the resulting 2-D lattice wil
 
 \section{Benefits of Online Algorithms}
 
+Due to the present state of available information gathering and live data streaming technologies, real time processing of new information is becoming increasingly more desirable. As new data is constantly made available to a machine learning reliant application, its underlying model needs to continuously adapt in order to accurately reflect the present state of the world around it.
 
+The above discussed clustering algorithms provide a means of performing online unsupervised learning from a data stream, resulting in a responsive underlying model. They overcome the performance overhead of iterative data processing, as well as the requirement to persist all observed information, which would quickly become infeasible in an online learning environment. Furthermore, the presented algorithms offer a variety of input parameters and underlying model adjustment schemes, allowing for greater user choice in regards to satisfying the particular needs of an application -- e.g. is there a particular way the input space should be partitioned between clusters, should dead centroids be avoided, etc. 
 
-\section{Implementation Challenge in Parallelizing Sequential Algorithms}
-% TODO: change section title
+\section{Implementation Challenges in Parallelizing Online Clustering Algorithms}
+
+When executing the Iterative or Mini-batch K-Means algorithm, the effect of every observed point (in the entire batch or mini-batch respectively) is aggregated before making an adjustment to the model of centroids. Thus, Spark implements these two algorithms by parallelizing the computation of each observations' impact and later making an update to the model in a local sequential process.
+
+In contrast, online clustering algorithms perform an immediate update to the state of the centroid model for each new observation. Therefore, parallelizing the effect of observations taken from a high volume stream becomes a non-trivial task. If a collection of input vectors is distributed between multiple partitions, updates to the model in one partition are not visible to others, while the most recent state of the model is constantly required to decide which centroid will be the ``winner'' regarding the latest data item.
+
+To overcome this issue it is necessary to employ additional data partitioning techniques along with a variety of partial solution combination algorithms. These methods can result in marginally reducing the quality of the final result, however, they are necessary to enable the performance benefits obtained from Spark's parallel data processing model.
 
 %==============================================================================
 
@@ -614,6 +620,7 @@ After the locations of the neurons have converged, the resulting 2-D lattice wil
 
 \section{Implementation Using Grand Mean}
 
+% TODO: drawings of points split between partitions
 % TODO: write about first center combiner its problems and the solution
 
 \section{Implementation using Spark Streaming}
