@@ -335,7 +335,7 @@ In the RDD based implementation of standard K-Means, MLlib exposes only a few fu
 
 The return value of this method (the result of running the algorithm) is a \texttt{KMeansModel} object. The representation of this object is an array with \texttt{K} vectors, each holding the value of a cluster center. It is important to note that that the output of a clustering job is not a mapping from input points to which center they belong to, but rather simply the values of the specified \texttt{K} centers. In order to obtain a mapping, a user would need to run a subsequent job, using the \texttt{KMeansModel} object to create a collection of key -- value pairs.
 
-The \texttt{KMeansModel} object also includes the \texttt{computeCost} method which calculates the loss of a model (i.e. the Within-Cluster Sum of Squares), given a set of input data points. This can be performed on any collection of data points as a measurement of how suitable the model is for the particular dataset, however, it is usually ran with the same RDD of vectors used to train the model.
+The \texttt{KMeansModel} object also includes the \texttt{computeCost()} method which calculates the loss of a model (i.e. the Within-Cluster Sum of Squares), given a set of input data points. This can be performed on any collection of data points as a measurement of how suitable the model is for the particular dataset, however, it is usually ran with the same RDD of vectors used to train the model.
 
 Due to the fact that most clustering algorithms are merely trying to generate a set of centroids to fit against observed data points and that the WCSS is a reasonable performance measure for these algorithms the \texttt{KMeansModel} object is used as the output of all K-Means jobs.
 
@@ -618,12 +618,84 @@ To overcome this issue it is necessary to employ additional data partitioning te
 \chapter{Online K-Means}
 \label{online}
 
+Two alternative implementations of Online K-Means were created -- one that functions as a single large batch process and another that relies on the facilities of Spark Streaming. The two designs also take alternative approaches in their data partitioning and solution combination phases.
+
 \section{Implementation Using Grand Mean}
 
-% TODO: drawings of points split between partitions
-% TODO: write about first center combiner its problems and the solution
+The first created implementation of the Online K-Means Clustering algorithm emulates the approach take by Spark's previous developers in creating the standard iterative algorithm. The program is once again structured as a discrete batch operation, relying on Spark's RDD API.
+
+\subsection{API details}
+
+The implemented class exposes only a single public method: \texttt{train()} which is necessary to execute the algorithm. It takes the following input parameters:
+
+\begin{itemize}
+\item \texttt{data}: An RDD holding all observed data points -- each being represented by a vector
+\item \texttt{K}: The number of desired cluster centers
+\item \texttt{seed}: A variable used to seed the sampling, necessary to make the initial centroid selection
+\end{itemize}
+
+The return value of the \texttt{train()} method is once again a  \texttt{KMeansModel} object, holding an array with \texttt{K} vectors, each representing the final location of a computed cluster center. In order to obtain the resulting WCSS value, one can simply invoke the model's \texttt{computeCost()} method and provide the same RDD of vector data as an input parameter.
+
+\subsection{Algorithm details}
+
+The underlying functionality of the \texttt{train()} method is to simply create an instance of the \texttt{OnlineKMeans} object, passing on the previously mentioned parameters, and invoke the object's \texttt{run()} method. As was the case with the implementation of standard K-Means, the \texttt{run()} method's function is to transform the input data into \texttt{VectorWithNorm} objects, thus enabling the use of the triangle inequality optimization for obtaining better performance when computing the nearest centroid to a given point\cite{Triangle}. Finally, the \texttt{run()} method returns a centroid model by invoking the \texttt{runAlgotithm()} function on the RDD of \texttt{VectorWithNorm} objects.
+
+The \texttt{runAlgotithm()} function in turn parses the transformed RDD and computes the resulting centroids. It begins by using the \texttt{seed} parameter to randomly sample the RDD and extract \texttt{K} vectors, which are used as the initial locations of the cluster centers. Then a broadcast variable holding the value of the \texttt{K} centroids is created (in order to reduce network traffic) and the \texttt{mapPartitions()} transformation is invoked on the RDD. This transformation is used to map an identical sequential operation across every partition of the RDD stored on different processing nodes. In the present scenario, the sequential operation is an implementation of the Online clustering algorithm (alg. \ref{online-alg}).
+
+This step is of particular interest as it can result in greatly influencing the final result of the function. Because no additional effort has been made to manually enforce a partitioning scheme on the data, the default partitioning of the provided RDD of vectors is used. If the data held in different partitions of the RDD does not have a uniform distribution across all logical clusters, there could be a large skew in the final output of the algorithm -- e.g. data consists of 3 logical clusters and 2 partitions -- partition 1 hold all observations from 2 of the clusters, partition 2 holds all data from the last cluster.
+
+\begin{figure}[H]
+	\centering
+    \label{partitions}
+    \includegraphics[width=1.0\textwidth]{images/partitions}
+    \caption{An example partitioning of 2 dimensional input data points. Every blue point belongs to the first partition, every red one to the second.} 
+\end{figure}
+
+The first operation performed in the \texttt{mapPartitions()} transformation is to inspect the value of the broadcast variable holding the initial locations of the \texttt{K} centroids and create a deep copy of it. Because each individual processing node will be making updates to the values of the centroids, they need to have their own unique copies, so as to not overwrite each other's results. An array of weights, holding the number of vectors that have ``attached'' to any given centroid, is also created.
+
+For each point, present in a given partition, the closest centroid (in terms of Euclidean distance) is identified, making use of the triangle inequality optimization, and the weight of that centroid is incremented. Immediately after, the value of the centroid is updated in the following way:
+
+\begin{center}
+\begin{BVerbatim}
+newCenter = oldCenter + learningRate * (observedPoint - oldCenter)
+\end{BVerbatim}
+\end{center}
+
+Here the learning rate is expressed as the reciprocal of the weight of the centroid, meaning that each new observation has a smaller and smaller impact on the location of the cluster center. Furthermore, since the coordinates of the centroid have shifted, it is necessary to recompute the vector's euclidean norm, so that subsequent input vectors can correctly identify their closest centroid. 
+
+Once all observations have been processed, every partition outputs a collection of tuples, each holding the coordinates of one of the \texttt{K} centroids along with its weight. Therefore, if the original RDD of vectors held \texttt{N} partitions, \texttt{N} * \texttt{K} tuples would be obtained. These resulting tuples present each partition's incomplete solution to the clustering problem (due to operating on a subset of the data).
+
+As a final step, it is necessary to combine the \texttt{N} * \texttt{K} tuples of partial solutions in order to obtain the final result. This is achieved by aggregating groups of \texttt{N} tuples into one centroid. For each center coordinate that has not yet been considered, the closest (by euclidean distance) \texttt{N} - 1 centers are identified and then merged based on a weighted average. The produced \texttt{K} vectors are then used to instantiate a \texttt{KMeansModel} object, which is returned to the user.
+
+\begin{algorithm}[H]
+\caption{Computing the grand mean of partial solutions of Online K-Means}\label{online-merge}
+\begin{algorithmic}[1]
+\State Given: \textit{N} * \textit{K} tuples of (centerCoordinate, centerWeight) $\in$ \textit{T}, an empty results set $T''$ 
+\For {\textit{t} $\in$ \textit{T}}
+    \State \textit{T}  $\gets$ \textit{sortByDistanceTo}(\textit{t})
+    \State $T'$ $\gets$ T.takeFirst(\textit{N})
+    \For {$t' \in T'$}
+    	\State totalWeight $\gets$ \textit{t}.weight + $t'$.weight
+        \State \textit{t}.center $\gets$ (\textit{t}.weight/totalWeight) * \textit{t}.center
+        \State $t'$.center $\gets$ ($t'$.weight/totalWeight) * $t'$.center
+        \State \textit{t}.center $\gets$ \textit{t}.center + $t'$.center
+        \State \textit{t}.weight $\gets$ totalWeight
+    \EndFor
+    \State \textbf{end for}
+    \State $T'' \gets T'' + t$
+    \State \textit{T} $\gets$ \textit{T}.removeAll($T'$)
+\EndFor
+\State \textbf{end for}
+\end{algorithmic}
+\end{algorithm}
+
+Originally, the partial solution combination phase was implemented by tracking each centroid's index (in the array of centroids that is copied over by each partition) and performing a weighted average over centroids with an identical index. This proved inadequate, however, as there is the possibility that centroids with an identical starting location could ``attach'' themselves to different clusters of the data in different partitions. Thus averaging them based on their indices could created a final centroid, situated between two clusters.
 
 \section{Implementation using Spark Streaming}
+
+% TODO: include picture of partitioned space
+% TODO: include picture of multiple splits for data coming from RDD
+% TODO: fetch execution DAG's for both online algorithms
 
 %==============================================================================
 
