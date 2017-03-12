@@ -715,21 +715,72 @@ Finally, after enough batch intervals (defined by the Streaming Context) have pa
 
 \subsection{Algorithm details}
 
-Similarly to the existing Streaming K-Means program in MLlib, the presented implementation of the Online K-Means algorithm fictions by performing periodic updates to a \texttt{model} variable. It is an object of type \texttt{StreamingOnlineKMeansModel} which holds the centroid coordinates, their weights and an \texttt{update()} method. In order to keep the model relevant, the \texttt{trainOn()} method make a call to \texttt{update()} for each RDD produced by the DStream -- supplying said RDD as an input parameter.
+Similarly to the existing Streaming K-Means program in MLlib, the presented implementation of the Online K-Means algorithm fictions by performing periodic updates to a \texttt{model} variable. It is an object of type \texttt{StreamingOnlineKMeansModel} which holds the centroid coordinates, their weights and an \texttt{update()} method. In order to keep the model relevant, the \texttt{trainOn()} method makes a call to \texttt{update()} for each RDD produced by the DStream -- supplying said RDD as an input parameter.
 
-The \texttt{update()} function, having received an RDD of \texttt{Vector} objects, begins by 
+The \texttt{update()} function, having received an RDD of \texttt{Vector} objects, proceeds to create an RDD of tuples where the second element is an observed point and the first is the nearest current centroid to that point (since this operation does not effect the state of the model it is trivial to parallelize with \texttt{map()} transformation). After broadcast variables for the arrays holding the coordinates of the cluster centers and their weights are created, the RDD of tuples undergoes the \texttt{groupByKey()} and \texttt{mapPartitions()} transformations. These two operations are of particular interest as they dictate how the observations will be used to update the model.
 
+The \texttt{groupByKey()} operation is used to used to alter the underlying structure of an RDD from a collection of key-value pairs (split between different partitions) to objects of the form -- (key, Iterable(value)), where one or more of these objects are stored in a single partition. This means that all points that are likely to influence a particular centroid are guaranteed to be present in a single partition. Being a transformation with wide dependencies\footnote{A transformation with wide dependencies needs to shuffle data between partitions, generating additional overhead and network traffic. In contrast a transformation with narrow dependencies does not need to move data between partitions.}, calling \texttt{groupByKey()} is fairly expensive, however, it has two major upsides:
 
-% TODO: include picture of partitioned space
-% TODO: include picture of multiple splits for data coming from RDD
-% TODO: fetch execution DAG's for both online algorithms
+\begin{enumerate}
+\item Because the algorithm utilizes Spark Streaming, the \texttt{groupByKey()} transformation will be applied to an RDD produced by a DStream, which is expected to hold a relatively small number of observations, resulting in a far less severe performance impact.
+\item Due to the fact that no two partitions will hold points that will influence the location of the same centroid, the execution of the Online K-Means algorithm can be parallelized across multiple worker nodes, without having to combine the partial solutions of each worker with a weighted average at the end. This eliminates the possibility of having the final results being skewed by a poor default partitioning of the input vectors across processing nodes. 
+\end{enumerate}
+
+\begin{figure}[H]
+	\centering
+    \label{partitions2}
+    \includegraphics[width=0.65\textwidth]{images/partitions2}
+    \caption{An example partitioning of input data points based on their proximity to existing centroids -- the white circles are centroids, the black ones are new observations.} 
+\end{figure}
+
+As part of the operation performed on each partition, deep copies of the arrays of centroid locations and their weights are obtained from the values of the previously created broadcast variables. Then, all groups of vectors that have attached themselves to an existing centroid, sent to the current partition, are processed sequentially.
+
+For each group of data points, the respective centroid and its weight are retrieved. The effect of each observation on the center's location is then computed through the standard formula:
+
+\begin{center}
+\begin{BVerbatim}
+newCenter = oldCenter + learningRate * (observedPoint - oldCenter)
+\end{BVerbatim}
+\end{center}
+
+The learning rate is once more expressed as the reciprocal of the weight of the centroid, which is incremented for each new observation. Unlike the previous implementation of the Online K-Means algorithm, since the centroid that each point will influence has already been determined, it is not necessary to recompute the euclidean norm of the centroid after each update.
+
+Before terminating its execution, every worker node, operating on a separate partition, outputs a collection of (center index, (center coordinates, weight)) tuples, for each centroid that had its new values recomputed at that node. Therefore, since every centroid is updated by only one node, there are no two tuples referring to the same centroid. In this case, it is simply enough to overwrite the coordinate and weight values in the appropriate arrays at the indicated centroid indices. It is important to note that the old arrays are not simply replaced by the aggregation of the output tuples, as there could have been centroids, that received no update from the data found in the latest RDD and so they would not have a corresponding output tuple.
+
+Once this operation has completed, the changes to the model, brought about by the input RDD of vectors, have been applied and the system enters a consistent state with a single view of the \texttt{K} centroid coordinates. Now the program is ready and waiting for the DStram to output another RDD so that this process may begin again.
+
+Had this approach been implemented without Spark Streaming, the input data partitioning scheme currently used would have resulted in exceptionally poor results. In fact, because the centroid that would be influenced by an observation is determined before any update to the model, the result would have been equivalent to performing a single iteration of the standard K-Means algorithms. With streaming, however, the program makes small periodic updates to its model, which alter the way in which input vectors with an identical distribution are partitioned between the centroids, for each consecutive RDD.\\\\
+
+\begin{figure}[H]
+	\centering
+    \label{DStream}
+    \includegraphics[width=1.0\textwidth]{images/DStream}
+    \caption{An illustration of consecutive updates to the \texttt{K} centroids, caused by processing in parallel the data held in each RDD, produced by a DStream.} 
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{.45\textwidth}
+  \includegraphics[width=1.0\linewidth]{images/DAG5}
+  \captionof{figure}{Grand Means Online K-Means execution DAG}
+  \label{fig:dag5}
+\end{minipage}%
+\begin{minipage}{.55\textwidth}
+  \centering
+  \includegraphics[width=1.1\linewidth]{images/DAG6}
+  \captionof{figure}{Streaming Online K-Means execution DAG}
+  \label{fig:dag6}
+\end{minipage}
+\end{figure}
 
 %==============================================================================
 
 \chapter{Adaptive Resonance Theory K-Means}
 \label{art}
 
-\section{Implementation Using Spark Streaming}
+\section{API details}
+
+\section{Algorithm details}
 
 % TODO: talk about normalization of space 
 % TODO: write about first center combiner its problems and the solution
@@ -743,6 +794,8 @@ The \texttt{update()} function, having received an RDD of \texttt{Vector} object
 \label{som}
 
 \section{Implementation Using Spark Streaming}
+
+% TODO: place each implementation in different section
 
 %==============================================================================
 
