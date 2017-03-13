@@ -691,7 +691,7 @@ As a final step, it is necessary to combine the \texttt{N} * \texttt{K} tuples o
 
 Originally, the partial solution combination phase was implemented by tracking each centroid's index (in the array of centroids that is copied over by each partition) and performing a weighted average over centroids with an identical index. This proved inadequate, however, as there is the possibility that centroids with an identical starting location could ``attach'' themselves to different clusters of the data in different partitions. Thus averaging them based on their indices could created a final centroid, situated between two clusters.
 
-\section{Implementation using Spark Streaming}
+\section{Implementation Using Spark Streaming}
 
 While the previous implementation of Online K-Means demonstrates a means of computing cluster centers by performing a single pass over the RDD of observations, it has a major weakness -- the user is expected to hold all of the clustering data in storage prior to running the algorithm. This would make the Grand Mean implementation impractical for the purposes of constructing an application, relying on continuous online learning from live sources. 
 
@@ -778,9 +778,37 @@ Had this approach been implemented without Spark Streaming, the input data parti
 \chapter{Adaptive Resonance Theory K-Means}
 \label{art}
 
-\section{API details}
+While the previously discussed implementations for Online K-Means present a way to achieve highly efficient and scalable clustering in an online learning environment, they have a number of weaknesses, stemming from the nature of the underlying algorithm. These shortcomings exists primarily because of the users potential uncertainty about the distribution of available data, as well as the possibly poor selection of the \texttt{K} centroids' initial coordinates.
 
-\section{Algorithm details}
+When operating with a continuous live source of data, or any vast quantity of information that did not originate from the observation of a discrete number of entities, it is often the case that the number of logical groups that exist amongst the gathered samples will be unknown. The algorithms, whose implementation has been looked at so far, however, all require the user to specify the value of \texttt{K} prior to processing the data. Furthermore, the method of setting the initial values of the \texttt{K} centroids, through randomly sampling the input data, can result in highly inaccurate clustering results if a significantly large percentage of the centroids are  initialized with nearly identical coordinates\cite{PlusPlus}.
+
+The purpose of developing ART K-Means with the use of Spark Streaming is to take advantage of the benefits offered by the Online K-Means algorithm (not having to iteratively process all observations, not needing to store the entirety of the data, etc.) while simultaneously overcoming its potential weaknesses. This is all achieved by reducing the users responsibility, in regards to specifying the exact number of desired centroids.
+
+\section{Alterations to the Adaptive Resonance Theory Algorithm}
+
+In the Adaptive Resonance Theory algorithm, the final value of \texttt{K} is incrementally discovered while processing the data -- the algorithm begins with a single centroid and adds more when it is necessary. Whether a new observation will influence an existing cluster center or will require the creation of a new one is determined by a user specified value, known as the \textit{vigilance} (normally expressed as an euclidean distance). If the distance from the latest observation to its closest centroid is less than the \textit{vigilance} value, the centroid coordinates are adjusted according to the standard online clustering formula:
+
+$$W' = W' + \eta(X - W')$$
+
+\noindent where $W'$ is the ``winning'' centroid, $X$ is the latest observation and $\eta$ is the learning rate. If the distance form $W'$ to $X$ is greater than the vigilance, however, a new centroid will be instantiated with the same coordinates as $X$. In this way, the algorithm effectively partitions the available N-dimensional space into a series of hyperspheres, with a radius equal to the \textit{vigilance} value.
+
+While this technique in adequate when dealing with a low-dimensional setting, such as the 3D physical space, it becomes unintuitive for a user to supply a value specifying euclidean distance between points with hundreds or thousands of dimensions -- the Curse of Dimensionality\cite{curseOfDimensionality}. To overcome this, it is necessary to provide the user with a different means of expressing the radius of the hypersphere surrounding each centroid.
+
+The solution proposed by this paper involves normalizing the values of all centroids and observations, so that they fit within the confines of a unit hypercube -- i.e. transform the value of each dimension of a given point to fit between 0 an 1. This is achieved by defining two special vectors: \textit{max} and \textit{min}, where \textit{max} holds the maximum possible value for each dimension and \textit{min} tracks the minimum possible value of each dimensions. If normalized, the \textit{max} and \textit{min} vectors would become $[1, 1, 1, ..., 1, 1]$ and $[0, 0, 0, ..., 0, 0]$ respectively. Then, to normalize a vector $X$, for each dimension $i$ the following formula is applied:
+
+$$X'[i] = \frac{X[i] - min[i]}{max[i] - min[i]}$$
+
+It is important to note that, when working in normalized space, the maximum possible distance between any two points is the distance between the \textit{min} and \textit{max} vectors defined as:
+
+$$\|max - min\| = \sqrt{(1-0)^2 + (1-0)^2 + ... + (1-0)^2} = \sqrt{numDimensions}$$
+
+\noindent Therefore, the squared distance between the \textit{min} and \textit{max} vectors is also equal to the number of dimensions in the observed data. It is then clear that the squared distance between any two points in the unit hypercube is between 0 and the number of dimensions of the hypercube. 
+
+For the purposes of the ART K-Means algorithms, one can now reasonably express the \textit{vigilance} value, as any number between 0 and the number of dimensions in the observed space. Then, the squared distance between the normalized forms of an observation and its closest centroid can be measured up against the \textit{vigilance} to determine if a new centroid should be created.
+
+\section{API Details}
+
+\section{Algorithm Details}
 
 % TODO: talk about normalization of space 
 % TODO: write about first center combiner its problems and the solution
