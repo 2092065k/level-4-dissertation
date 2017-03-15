@@ -674,15 +674,16 @@ As a final step, it is necessary to combine the \texttt{N} * \texttt{K} tuples o
 \For {\textit{t} $\in$ \textit{T}}
     \State \textit{T}  $\gets$ \textit{sortByDistanceTo}(\textit{t})
     \State $T'$ $\gets$ T.takeFirst(\textit{N})
+    \State $t'' = ([0 ,0, .., 0], 0)$
     \For {$t' \in T'$}
-    	\State totalWeight $\gets$ \textit{t}.weight + $t'$.weight
-        \State \textit{t}.center $\gets$ (\textit{t}.weight/totalWeight) * \textit{t}.center
+    	\State totalWeight $\gets$ $t''$.weight + $t'$.weight
+        \State $t''$.center $\gets$ ($t''$.weight/totalWeight) * $t''$.center
         \State $t'$.center $\gets$ ($t'$.weight/totalWeight) * $t'$.center
-        \State \textit{t}.center $\gets$ \textit{t}.center + $t'$.center
-        \State \textit{t}.weight $\gets$ totalWeight
+        \State $t''$.center $\gets$ $t''$.center + $t'$.center
+        \State $t''$.weight $\gets$ totalWeight
     \EndFor
     \State \textbf{end for}
-    \State $T'' \gets T'' + t$
+    \State $T'' \gets T'' + t''$
     \State \textit{T} $\gets$ \textit{T}.removeAll($T'$)
 \EndFor
 \State \textbf{end for}
@@ -808,22 +809,125 @@ For the purposes of the ART K-Means algorithms, one can now reasonably express t
 
 \section{API Details}
 
+To run the ART K-Means algorithm, with a DStream of vectors as a live data source, it is first necessary to instantiate an \texttt{ARTK-Means} object. Then, one needs to call a small number of mutator methods to initialize the parameters of the algorithm and possibly provide the starting coordinates and weights for an unrestricted number of centroids. The possible methods are:
+
+\begin{itemize}
+\item \texttt{setA()}: \textit{a} is the percentage of the squared distance between the \textit{min} and \textit{max} vectors that will be used as the \textit{vigilance} value -- i.e. $vigilance = a * numDimensions$
+\item \texttt{setInitialCenters()}: allows the user to set the starting coordinates and weights of cluster centers. Because there is no required number of centroids in ART K-Means, the starting model can have as many as the user requires. If the distance between the provided centroids is less than the specified vigilance, however, the program will merge them.
+\end{itemize}
+
+Once all the initialization is complete, just like the previous streaming algorithm, the \texttt{trainOn()} method with an input DStream of vector objects needs to be called to begin the execution of ART K-Means. The state of the model will once again be updated by each RDD produced by the DStream.
+
+After enough data has passed though the system, or the data stream is terminated for whatever reason, the present state of the model can be inspected by calling the \texttt{latestModel()} method. It will return a \texttt{KMeansModel} object, holding as many centroids as the algorithm deemed necessary.
+
 \section{Algorithm Details}
 
-% TODO: talk about normalization of space 
-% TODO: write about first center combiner its problems and the solution
-% TODO: graphs of extra centers made between partitions
-% TODO: picture of full space vs unit hypercube
-% TODO: algorithm of combining centers
+Like the previously described algorithms, which had a reliance on Spark Streaming, the implementation of ART K-Means functions by keeping track of the present state of the cluster centroids and their weights, while periodically making updates to their values (once every batch interval). To keep its model up-to-date, the program's \texttt{trainOn()} method makes a call to \texttt{update()} for each new RDD from the source DStream. 
+
+While this method of operation has proven suitable for the purposes of creating a scalable version of a clustering algorithm that operates in an online learning environment, it can create a variety of complications for the execution of ART K-Means. First of all, because the algorithm is intended to operate on a live, unexplored dataset, the values of the \textit{min} and \textit{max} vectors are not known at the start of the program. Therefore, they need to be discovered dynamically while processing the input data. The issue, however, is that because new data is generated live and the application receives its input in small batches, the full scale of the observed space will most likely not become apparent immediately. Thus the values of the \textit{min} and \textit{max} vectors would constantly need to be recomputed for each new RDD from the DStream to ensure that they accurately represent the limitation of each observed dimension.\\
+
+\begin{figure}[H]
+	\centering
+    \label{minMaxgraph}
+    \includegraphics[width=0.65\textwidth]{images/Graph5}
+    \caption{An example of the expanding limitations of two observed dimensions. The data received from the first RDD is confined to the box labeled RDD1, the data received in the second RDD is inside the RDD2 box and so on -- the maximum and minimum value of each dimension can become bigger and smaller respectively for each new RDD.} 
+\end{figure}
+
+Continuously updating the values of the \textit{min} and \textit{max} vectors to accurately reflect the minimum and maximum possible values of each dimension can indeed be achieved with little overhead. Although, because the program operates on discrete batches of data, after the latest values for the two vectors has been decided, the algorithm will proceed to perform a clustering operation on the available data by making use of those vectors to normalize all points within the unit hypercube. If the data within the following RDD, however, results in greatly expanding the limitations expressed by the \textit{min} and \textit{max} vectors, consecutive normalizations to the unit hypercube would result in greatly increasing the effective distance expressed by the \textit{vigilance} value (and also the size of the hypersphere surrounding each centroid). Therefore, if a large collection of new centroids were created when the effective \textit{vigilance} was far smaller, it would be observed that the small subsection of space, where data from previous RDDs was contained, would have a higher density of centroids than the rest of the presently available space. Furthermore, the centroids in such a region would be closer to each other than the present \textit{vigilance} value.
+
+It would be preferable to maintain a consistent partitioning of the observed space into hyperspheres with a radius equal to the present \textit{vigilance}, while avoiding the case where two or more hyperspheres contain each others centers. To achieve this, it is necessary to once again utilize a centroid combination algorithm. Unlike the one used in the non-streaming implementation of Online K-Means, it is not necessary to merge a specific number of cluster centers, but rather to identify all centroids who are too close to each other and merge those. Therefore, for each of the current centroids, the algorithm finds all other in the collection, whose squared distance in normalized form is smaller than the current \textit{vigilance} value, and merges them with a weighted average. It is also important to note that if the data found in a new RDD does not expand the scope of the \textit{min} and \textit{max} vectors by a lot (if at all), running this algorithm would have no effect on the number of centroids in the model.
+
+\begin{algorithm}[H]
+\caption{Combining centroids that are too close to each other in ART K-Means}
+\begin{algorithmic}[1]
+\State Given: a collection of centroids $C$, an empty results set $C''$ 
+\State \hspace{1.1cm} $min$ Vector, $max$ Vector, $vigilance$ value
+\For {\textit{c} $\in$ \textit{C}}
+    \State $C' \gets$ []
+    \State $c' \gets$ \textit{normalizeVector(c, min, max)}
+    \For {$cen \in$ \textit{C}}
+        \State $cen' \gets normalizeVector(cen, min, max)$
+        \State \textbf{d} $\gets getSquaredDistance(c', cen')$
+        \If {$d < vigilance$}
+            \State $C' \gets C' + cen$
+        \EndIf
+    \EndFor
+    \State \textbf{end for}
+    \State $c'' = ([0 ,0, .., 0], 0)$
+    \For {$cen \in C'$}
+    	\State totalWeight $\gets$ $c''$.weight + \textit{cen}.weight
+        \State $c''$.center $\gets$ ($c''$.weight/totalWeight) * $c''$.center
+        \State \textit{cen}.center $\gets$ (\textit{cen}.weight/totalWeight) * \textit{cen}.center
+        \State $c''$.center $\gets$ $c''$.center + \textit{cen}.center
+        \State $c''$.weight $\gets$ totalWeight
+    \EndFor
+    \State \textbf{end for}
+    \State $C'' \gets C'' + c''$
+    \State \textit{C} $\gets$ \textit{C}.removeAll($C'$)
+\EndFor
+\State \textbf{end for}
+\end{algorithmic}
+\end{algorithm}
+
+Originally, the used centroid combination method was a sequential version of ART K-Means. There, the existing centroids were treated as the input set of observations and the clustering algorithm proceeded to generate a new set of centroids, using the current values of the \textit{min} and \textit{max} vectors. This approach proved inadequate, however, as the final results would vary based on the order in which the centroids were processed.
+
+With all of this into consideration, the \texttt{update()} method of the \texttt{ARTKMans} class, having been supplied with an RDD of vectors from the DStream, begins by performing two consecutive \texttt{reduce()} actions on the entire RDD, to discover the latest values of the \textit{min} and \textit{max} vectors. Then, since the previous limitations of the observed dimensions may have expanded, the centroid combination method is called on the presently available centroids. If there are no existing centroids (i.e. this is the first RDD from the DStream and custom centroids were not initialized manually), the method assigns the first vector in the RDD to be the starting centroid of the algorithm.
+
+Once the state of the centroids and the \textit{min} and \textit{max} vectors has been determined, the \texttt{update()} method transforms the vectors inside the RDD into \texttt{VectorWithNorm} objects to enable the use of the triangle inequality optimization\cite{Triangle}. Finally, it updates the state of the model in response to the latest observations by invoking \texttt{runAlgorithm()}.
+
+The \texttt{runAlgorithm()} functions contains the core part of ART K-Means. Here, the \textit{vigilance} is computed by multiplying the user supplied percentage parameter with the maximum possible squared distance in normalized space (the number of observed dimensions). The input RDD is then transformed once more to hold tuples, where the second element is a data point and the first one is the index of the closest centroid to that point. This allows the algorithm to partition the observations, based on their proximity to the existing centroids, by calling the \texttt{groupByKey()} and \texttt{mapPartitions()} transformations -- an identical operation to the one used in the streaming implementation of Online K-Means.
+
+Each separate processing node, operating on a given RDD partition, creates a deep copy of the state of the centroids and their weights (from previously created broadcast variables) and parses each (key, Iterable(value)) object found in the partition. Unlike the Online K-Means algorithm, it is not possible to simply obtain the ``winning'' centroid for the given (key, Iterable(value)) object and update its value for each observation. This is because, during the execution of the algorithm, additional centroids may be created for the current partition, which may be a better fit for some of the data than the original centroid. Therefore, upon processing each point, it is necessary to recompute its closest centroid. 
+
+At this stage, the algorithm proceeds as normal. The considered point and its closest centroid are both normalized using the \textit{min} and \textit{max} vectors. The squared distance between the two normalized vectors is computed and compared against the vigilance. If the distance is larger, a new centroid with a weight of one is created at the coordinates of the observation, and if it is smaller, the existing centroid is updated according to the standard formula:
+
+\begin{center}
+\begin{BVerbatim}
+newCenter = oldCenter + learningRate * (observedPoint - oldCenter)
+\end{BVerbatim}
+\end{center}
+
+Once every data point has been processed, the worker nodes output a collection of tuples of the following form: (center index, (center coordinates, weight)). Because of the used partitioning scheme, however, just like with \texttt{StreamingOnlineKMeans}, no two partitions will output a tuple relating to the same centroid. Although, special care needs to be taken when overwriting the values of the previous centroids. Tuples with an index lower than the number of existing centroids (before processing the latest RDD) should be used to replace those centroids at the respective indices and tuples with an index larger than that need to be appended to the centroids array. If for example two partitions both create one extra centroid, their corresponding output tuples will have an identical index (1 + number of prior centroids), however, they are not referring to the same cluster center.
+
+Finally, there is one more complication to be considered. By splitting up the observations based on their proximity to existing centroids, the algorithm defines clear boundaries between data points, sent to different partitions. During the execution of the ART K-Means algorithm by each worker node, if the hypersphere of the original centroid for a given partition does not encompass all observations within that partition, new centroids will be created (typically near the boundaries). It is therefore possible that two or more centroids could be instantiated right next to each other, if they are on opposite sides of a boundary.
+
+\begin{figure}[H]
+	\centering
+    \label{grapgh-boundary}
+    \includegraphics[width=0.65\textwidth]{images/Graph4}
+    \caption{An example partitioning of data points based on their proximity to existing centroids. In this case the two data points, outside of the hyperspheres of the centroids, will cause two new centroids to be created next to each other, because the data in each partition is considered in isolation.} 
+\end{figure}
+
+Clearly, having hyperspheres contain each others' centroids is not desirable and would never occur in a sequential version of the algorithm, where all of the data is visible in one scope. It is therefore necessary to merge these kinds of centroids. Fortunately, an algorithm for performing a weighted average over centroids that are too  close to each other is already available -- the one used after recomputing the values of the \textit{min} and \textit{max} vectors. It simply needs to be invoked one more time on the collection of cluster centers, available after the worker nodes have finished processing the different data partitions. 
+
+Once the centroid combination algorithm has completed, its output is used to create a \texttt{KMeansModel} object, which is finally returned to the user as the current state of the model, after adjusting for all of the new observations in the latests RDD.
+
+To recap, in order to update the state of the model in response to the new batch of data found in the newest RDD produced by the DStream, the presented implementation of the ART K-Means algorithm transitions through four significant phases:
+
+\begin{enumerate}
+\item Recompute the values of the \textit{min} and \textit{max} vectors to accurately express the limits of each observed dimension.
+\item Run the centroid combination algorithm, as the limitations of the observed N-dimensional space may have greatly expanded.
+\item Partition the available observations based on their proximity to the existing centroids and process each partition with the ART K-Means algorithm in parallel.
+\item Run the centroid combination algorithm again, as there may be cluster centroids positioned right next to each other, because of the partitioning scheme in phase 3.
+\end{enumerate}
+
+\begin{figure}[H]
+	\centering
+    \label{fig:dag7}
+    \includegraphics[width=0.75\textwidth]{images/DAG7}
+    \caption{ART K-Means execution DAG (taken from the Spark History Server)} 
+\end{figure}
 
 %==============================================================================
 
 \chapter{Self-Organizing Maps K-Means}
 \label{som}
 
-\section{Implementation Using Spark Streaming}
 
-% TODO: place each implementation in different section
+
+\section{API details}
+
+\section{Algorithm Details}
 
 %==============================================================================
 
