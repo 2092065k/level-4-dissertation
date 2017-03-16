@@ -533,7 +533,7 @@ For example, consider at time $t_0$ Online K-Means is run on a continuous data s
 
 A way to avoid dead centers is to update not only the winner, but also a few additional centroids. In the Self-Organizing Map (SOM) each cluster center is assigned an index, which defines a neighborhood of centroids\cite{SOM} -- in this context also called neurons. When $c_i$ is the closest center to an observed point, the neighbors of $c_i$ are also moved. If the neighborhood is of size 2, then $c_{i-2}, c_{i-1}, c_i, c_{i+1}, c_{i+2}$ are all adjusted, but with less weight as the neighborhood increases.
 
-In the case of SOM K-Means each neuron is updated with respect to ``the impact of the neighborhood''. It is defined as a Gaussian function of the Euclidean distance of the locations of the neurons in the neighborhood -- two neighboring neurons \texttt{A} and \texttt{B} the impact is:  $h(A,B) = \exp(-\sigma*distance(A, B)^2)$. Thus if $W^{\prime}$ is the closest center to an observed point \textit{X} then all neurons \textit{W} in the neighborhood are updated by the formula:
+In the case of SOM K-Means each neuron is updated with respect to ``the impact of the neighborhood''. It is defined as a Gaussian function of the Euclidean distance of the locations of the neurons in the neighborhood -- for two neighboring neurons \texttt{A} and \texttt{B} the impact is:  $h(A,B) = \exp(-\sigma*distance(A, B)^2)$. Thus if $W^{\prime}$ is the closest center to an observed point \textit{X} then all neurons \textit{W} in the neighborhood are updated by the formula:
 
 \begin{figure}[H]
 \begin{CenteredBox}
@@ -700,7 +700,7 @@ To overcome this downside, another version of the Online K-Means algorithm was c
 
 \subsection{API details}
 
-To launch the Online K-Means algorithms, with a stream of N-dimensional vectors as a data source, it is first necessary to instantiate a \texttt{StreamingOnlineKMeans} object. Then, one has to invoke a series of mutator methods to provide all the necessary input parameters to the program and possibly establish an initial state for the \texttt{K} centroids. The methods include:
+To launch the Online K-Means algorithms, with a stream of N-dimensional vectors as a data source, it is first necessary to instantiate a \texttt{StreamingOnlineKMeans} object. Then, one has to invoke a series of mutator methods to provide all the required input parameters to the program and possibly establish an initial state for the \texttt{K} centroids. The methods include:
 
 \begin{itemize}
 \item \texttt{setK()}: sets the number of cluster centers
@@ -816,7 +816,7 @@ To run the ART K-Means algorithm, with a DStream of vectors as a live data sourc
 \item \texttt{setInitialCenters()}: allows the user to set the starting coordinates and weights of cluster centers. Because there is no required number of centroids in ART K-Means, the starting model can have as many as the user requires. If the distance between the provided centroids is less than the specified vigilance, however, the program will merge them.
 \end{itemize}
 
-Once all the initialization is complete, just like the previous streaming algorithm, the \texttt{trainOn()} method with an input DStream of vector objects needs to be called to begin the execution of ART K-Means. The state of the model will once again be updated by each RDD produced by the DStream.
+Once all the initialization is complete, just like the previous streaming algorithm, the \texttt{trainOn()} method, with an input DStream of vector objects, needs to be called to begin the execution of ART K-Means. The state of the model will once again be updated by each RDD produced by the DStream.
 
 After enough data has passed though the system, or the data stream is terminated for whatever reason, the present state of the model can be inspected by calling the \texttt{latestModel()} method. It will return a \texttt{KMeansModel} object, holding as many centroids as the algorithm deemed necessary.
 
@@ -908,7 +908,7 @@ To recap, in order to update the state of the model in response to the new batch
 \item Recompute the values of the \textit{min} and \textit{max} vectors to accurately express the limits of each observed dimension.
 \item Run the centroid combination algorithm, as the limitations of the observed N-dimensional space may have greatly expanded.
 \item Partition the available observations based on their proximity to the existing centroids and process each partition with the ART K-Means algorithm in parallel.
-\item Run the centroid combination algorithm again, as there may be cluster centroids positioned right next to each other, because of the partitioning scheme in phase 3.
+\item Run the centroid combination algorithm again, as there may be cluster centroids positioned right next to each other because of the partitioning scheme in phase 3.
 \end{enumerate}
 
 \begin{figure}[H]
@@ -923,11 +923,32 @@ To recap, in order to update the state of the model in response to the new batch
 \chapter{Self-Organizing Maps K-Means}
 \label{som}
 
+The final method of clustering, whose design will be explored by this paper, is the Self-Organizing Maps K-Means algorithm. Its implementation adapts a variety of optimizations and techniques that are utilized by the previously discussed algorithms. SOM K-Means also utilizes Spark Streaming, making it ideal for application that depend on a model, capable of continuously adapting to an online learning environment.
 
+SOM K-Means is different to the algorithms covered so far, as it is the only one that does not employ a ``winner take all'' form of competitive learning. Here an observation causes a change in not only its nearest centroid (also called neurons in this context) but also in every centroid belonging to the neighborhood of the ``winner''. As the winning neurons also pull their neighbors towards the data source, eventually all centroids will be near regions with a high density of observations. This gives the SOM K-Means algorithm the distinct advantage of avoiding ``dead'' centroids in case the distribution of data from the source stream changes.
 
 \section{API details}
 
+To launch the SOM K-Means algorithm, with a DStream of N-dimensional vectors as a data source, a user needs to first instantiate a \texttt{SOMKMeans} object. It is then necessary to invoke a variety of mutator methods to set all of the input parameters needed by the algorithm, along with an optional function for manually providing the initial state of the self-organizing map. The methods include:
+
+\begin{itemize}
+\item \texttt{setNNDimensions()}: sets the dimensions of the neural net (NNDimensions) which will be trained. Since the algorithm uses a 2-dimensional map, the supplied value will be used to create a square lattice with $NNDimensions^2$ neurons
+\item \texttt{setNSize()}: sets the size of the neighborhood -- a neighborhood of size \textit{n} means that every neuron within \textit{n} hops form the winner is part of its neighborhood
+\item \texttt{setSigma()}: sets the tuning parameter $\sigma$
+\item \texttt{setLearningRate()}: sets the percentage of influence a new point has on a centroid -- $\eta$ is a constant here, as opposed to the reciprocal of the weights of the centroids
+\item \texttt{setSeed()}: set a seed for the random sampling, used to determine the initial coordinates of the neurons
+\item \texttt{setInitialCenters()}: allows the user to manually set the initial coordinates of the neurons. It is necessary, however, that the number of supplied vectors be equal to the square of the value supplied to the \texttt{setNNDimensions()} method, in order to fill the 2-dimensional map
+\end{itemize}
+
+After all of the required parameters have been set, the algorithm can start executing by calling the \texttt{trainOn()} method with a DStream of vectors as an input -- the continuous live data source. As was the case with the previous streaming algorithms, the sate of the model will be updated in response to the observations held in each new RDD produced by the DStream. Furthermore, if the user did not manually provide the starting coordinates of the neurons in the 2D lattice, the first RDD from the DStream will be randomly sampled (using the \texttt{seed} parameter) to initialize their values.
+
+After a number of batch intervals\footnote{The length of a batch interval is determined by the Streaming Context.} have passed, a user may inspect the present state of the cluster model by calling the \texttt{latestModel()} method. It will return a \texttt{KMeansModel} object, holding the coordinates of all $NNDimensions^2$ neurons.
+
 \section{Algorithm Details}
+
+% uses one 1D array for the 2D map
+% starting values of neurons need not be physical neighbors
+% row column % /
 
 %==============================================================================
 
