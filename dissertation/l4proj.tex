@@ -946,13 +946,40 @@ After a number of batch intervals\footnote{The length of a batch interval is det
 
 \section{Algorithm Details}
 
-% uses one 1D array for the 2D map
-% starting values of neurons need not be physical neighbors
-% row column % /
+The presented implementation of the SOM K-Means algorithm functions by making periodic updates to a \texttt{model} variable, which is of type \texttt{KMeansModel} -- similarly to the previous algorithms that relied on Spark Streaming. To achieve this, the program's \texttt{trainOn()} method makes a call to \texttt{update()} for each new RDD from the DStream. The \texttt{update()} method in turn transforms all of the vectors in the RDD to \texttt{VectorWithNorm} objects and invokes \texttt{runAlgorithm()}.
+
+Before proceeding with the rest of the algorithm's implementation, it is important to discuss the way in which the 2-dimensional lattice of neurons is stored. Instead of a 2-dimensional collection of some form, all neurons are simply held in a 1-dimensional array. To obtain the row and column number of a neuron in the array, one would need to perform integer and modulo division respectively on the index of the neuron, by the \textit{NNDimensions} value. For example, if the SOM lattice is a 5X5 square and a neuron in the array is at index 14, its row is 14 / 5 = 2  and its column is 14 \% 5 = 4. This method of representing the 2-dimensional SOM was chosen in order to more efficiently make use of helper function for clustering, built into MLlib, that operate on 1-dimensional arrays of vectors.
+
+It is also worth mentioning that at this stage of the algorithm, when the first RDD from the DStream has not been fully processed yet, neighboring neurons in the SOM are not necessarily physical neighbors. Whether the starting coordinates of each of the neurons were manually set by the user or chosen randomly by sampling the input data, it is not required for the algorithm's correct execution to have neighbors in the lattice also being neighbors in the observed space. In fact, as more and more data points are encountered, neighbors in the lattice will start pulling each other closer together, until they eventually become true neighbors in the physical space as well -- hence the name ``self-organizing''.
+
+With all of this into consideration, the \texttt{runAlgorithm()} method, begins by creating a broadcast variable of the array of centroids and applying the \texttt{mapPartitions()} transformation on the RDD of observations, so that a sequential version of SOM K-Means can be executed on each existing partition of the RDD. Then, each worker node, operating on a separate partition, creates a deep copy of the values in the centroids array and proceeds to individually process every observation in the partition. 
+
+Another point of interest is that an array of zeros, with a length equal to the number of neurons, is created for each partition. Since the algorithm uses a static learning rate, it is not necessary to track the overall weight of each centroid, but rather only count how many observations have ``attached'' to each neuron in the current partition of the RDD. This is required to enable the centroid combination phase, which takes place after every worker node has finished producing its partial solution to the clustering problem.
+
+For each data point $X$, found in an individual partition, the algorithm identifies its closest neuron $W'$, increments the corresponding neuron's counter in the weights array and updates the position of the neuron as follows:
+
+$$W' = W' + \eta*(X-W')$$
+
+\noindent Then, using the supplied value for the size of the neighborhood, the algorithm fetches the indices of all neurons $W$ within the neighborhood of the winner $W'$. Their coordinates are now updated as well with the formula:
+
+$$W = W + h(W^{\prime},W)*\eta*(X-W)$$
+
+\noindent where $h(W^{\prime},W)$ is the impact of the neighborhood expressed as $h(W',W) = \exp(-\sigma*distance(W', W)^2)$. The value returned by $h(W^{\prime},W)$, for a neuron $W$ in the neighborhood of the winner, is also added on to the value stored in the weights array at the index of the respective neuron.
+
+After every worker node has finished processing the input data points that were allocated to it, the final state of the SOM for a given partition is output as a collection of tuples in the following form -- (neuron index, neuron coordinates, neuron weight). All tuples with an identical neuron index are then merged with a weighted average, using the third value of the tuple, and the resulting centroid coordinates are used to overwrite the neurons stored in the previous model (again by replacing elements in the neuron array at the indices specified by the tuples). Finally, the resulting SOM is used to instantiate a \texttt{KMeansModel} object, which is returned to the user.
+
+When a sufficient number of RDDs, produced from the live data source, have been processed in this way, the state of the 2-dimensional lattice will represent a \textit{topological map} of the observed N-dimensional space. Therefore, the trained model is expected to have several neurons in places with a high density of observations and none in the regions of space where there is no input data.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:dag8}
+    \includegraphics[width=0.37\textwidth]{images/DAG8}
+    \caption{SOM K-Means execution DAG (taken from the Spark History Server)} 
+\end{figure}
 
 %==============================================================================
 
-\chapter{Performance Evaluation and Data Model Analysis}
+\chapter{Algorithm Evaluation}
 \label{eval}
 
 % TODO: maybe add an evaluation section earlier to each part\\
