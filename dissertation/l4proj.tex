@@ -793,7 +793,7 @@ $$W' = W' + \eta(X - W')$$
 
 \noindent where $W'$ is the ``winning'' centroid, $X$ is the latest observation and $\eta$ is the learning rate. If the distance form $W'$ to $X$ is greater than the vigilance, however, a new centroid will be instantiated with the same coordinates as $X$. In this way, the algorithm effectively partitions the available N-dimensional space into a series of hyperspheres, with a radius equal to the \textit{vigilance} value.
 
-While this technique in adequate when dealing with a low-dimensional setting, such as the 3D physical space, it becomes unintuitive for a user to supply a value specifying euclidean distance between points with hundreds or thousands of dimensions -- the Curse of Dimensionality\cite{curseOfDimensionality}. To overcome this, it is necessary to provide the user with a different means of expressing the radius of the hypersphere surrounding each centroid.
+While this technique in adequate when dealing with a low-dimensional setting, such as the 3D physical space, it becomes unintuitive for a user to supply a value specifying euclidean distance between points with hundreds or thousands of dimensions -- the Curse of Dimensionality\cite{CurseOfDimensionality}. To overcome this, it is necessary to provide the user with a different means of expressing the radius of the hypersphere surrounding each centroid.
 
 The solution proposed by this paper involves normalizing the values of all centroids and observations, so that they fit within the confines of a unit hypercube -- i.e. transform the value of each dimension of a given point to fit between 0 an 1. This is achieved by defining two special vectors: \textit{max} and \textit{min}, where \textit{max} holds the maximum possible value for each dimension and \textit{min} tracks the minimum possible value of each dimensions. If normalized, the \textit{max} and \textit{min} vectors would become $[1, 1, 1, ..., 1, 1]$ and $[0, 0, 0, ..., 0, 0]$ respectively. Then, to normalize a vector $X$, for each dimension $i$ the following formula is applied:
 
@@ -982,16 +982,47 @@ When a sufficient number of RDDs, produced from the live data source, have been 
 \chapter{Algorithm Evaluation}
 \label{eval}
 
-% TODO: maybe add an evaluation section earlier to each part\\
-% add chapter comparing algorithms at the end\\
-% both would need to explain evaluation method earlier\\
-% make a reference to the used training data
+When it comes to evaluating the quality of a result produced by an unsupervised machine learning algorithm, there is usually a variety of possible evaluation metrics and criteria that can be employed. One needs to be careful, however, as certain performance measures are not always directly applicable, given the nature of the exact algorithm that is used, or the underlying structure of the input training data. Certain evaluation algorithm also have a tendency of indicating that an algorithm's output model is of higher quality, when in fact it has been overfit to the training data in an undesirable manner\cite{Overfit}.
 
+In order to evaluate the four implemented clustering algorithms, it is not only necessary to measure the quality of the produced model, in response to a supplied training set, but also to juxtapose that result with the output of the existing clustering algorithms in MLlib. Furthermore, for the purposes of this project, it is sometimes less important to evaluate the result of a performed clustering operation, but rather the difference between the new and old algorithms, given identical starting parameters. 
+
+\section{Evaluation Methods}
+
+\subsection{Within-Cluster Sum of Squares (WCSS)}
+
+At its core, K-Means clustering is an optimization problem. For a given value of \texttt{K}, the algorithm aims to assign each input data point to one of \texttt{K} centroids, so as to minimize the sum of squared distances from the observed points to their respective centroids. This is known as the Within-Cluster Sum of Squares (WCSS) or the loss of the clustering model. It is expressed by the following formula:
+
+$$arg_{s} min \sum_{i=1}^{k}\sum_{x \in S} \|x - \mu_{i} \|^{2}$$
+
+\noindent Because a clustering algorithm is ultimately trying to minimize the WCSS value, it can be used as a performance measure for the quality of the resulting clustering -- the lower the value, the better the model.
+
+The problem with WCSS, however, is that it cannot be easily used to tune the parameters of a clustering algorithm to obtain a better model. Because of its nature, by increasing the value of \texttt{K}, the loss of the model will also continue to decrease. In fact, if \texttt{K} was made equal to the number of observed data points, WCSS would report a loss of zero. In that scenario the model would exhibit too much entropy and would be useless from a practical sense. The standard practice for using WCSS to choose the number of centroids is to start at \texttt{K = 1} and incrementally increase the value of \texttt{K} until the change in the loss stops being significant for each new values of \texttt{K} -- this approach, however, is only a heuristic.
+
+While WCSS on its own is not sufficient to discover the best possible result for a clustering operation, it can be easily used to compare the results of two different algorithms that received the same set of input parameters. Even though both output models could be regarded as doing a poor clustering of the observed data (e.g. the data consists of five logical clusters, but \texttt{K} was set to three), the WCSS value is still capable of determining which one is better.
+
+\subsection{Silhouette}
+
+Silhouette\cite{Silhouette} is a method of interpretation and validation of consistency within clusters of data. It offers a clear and simple way of representing how well each data point lies within its cluster. The silhouette value of a particular observation in the input set is a measure of how similar that object is to its own cluster in comparison to other clusters.
+
+The silhouette score of a data point can range from -1 to 1. A value close to 1 indicates a near perfect cluster assignment (i.e. the observation is well matched to its own cluster and poorly matched to the neighboring cluster). A value near 0 means that the algorithm is fairly indifferent as to whether the point is assigned to its current centroid or its closest neighbor -- a point situated directly between two existing clusters is likely to have a silhouette score around 0. And finally, a silhouette value close to -1 suggests that the cluster assignment is incorrect. The available cluster model is then considered to be well adjusted to the input data distribution if most points have a high silhouette score. If this is not the case, the model likely has too many or too few centroids.
+
+In order to compute the silhouette value of an observation, it is first necessary to define the average dissimilarity of a data item with a given cluster. \textit{C(i)}, or the average dissimilarity of item \textit{i} with cluster \textit{C}, is the average of the distance from \texttt{i} to all points in \textit{C}. If \textit{A(i)} is the average dissimilarity of point \textit{i} with the cluster it belongs to, and \textit{B(i)} is the lowest average dissimilarity of \textit{i} with any other cluster (often called the neighboring cluster of \textit{i} -- its next best fit), the equation for \textit{i}'s silhouette score is:
+
+$$S(i) = \frac{B(i) - A(i)}{max\{A(i), B(i)\}}$$
+
+From this formula, it is clear that $1 \leq S(i) \leq -1$. Furthermore, if $S(i)$ is to have a value near 1, then the dissimilarity of the item with its neighboring cluster needs to be far grater than its dissimilarity with its assigned cluster: $A(i) \ll B(i)$. Thus, the average $S(i)$ over all data in a cluster measures how closely are the points in that cluster grouped together and an average over all observations in the dataset determines how good the cluster model is.
+
+While computing the WCSS value of a model is available through the \texttt{KMeansModel} class, evaluation through Silhouette is not provided by MLlib. Therefore, it was necessary to create a custom implementation of the algorithm using Spark's RDD API. The created \texttt{Silhouette} class exposes a \texttt{runAnalysis()} method, which takes a \texttt{KMeansModel} and an RDD of vector data as input and returns a collection of tuples in the following form: (cluster index, number of points in the cluster, average silhouette value of the points in the cluster).
+
+Even though this method provides much more information about the state of the cluster model than the WCSS formula, because of its $O(n^2)$ complexity, Silhouette is not scalable. Despite being implemented in Spark and executing in parallel on a cluster of worker nodes, the algorithm's run time is exceptionally high, even when operating on small collections of data.
+
+\section{Used Training Data}
+
+
+
+% TODO: both would need to explain evaluation methods
+% TODO: make a reference to the used training data
 % TODO: talk about silhouette - include pseudo code and picture 
-
-\section{Sum of Squared Distances}
-
-\section{Silhouette}
 
 %==============================================================================
 
@@ -999,6 +1030,7 @@ When a sufficient number of RDDs, produced from the live data source, have been 
 \label{conclusion}
 
 % TODO: conclusion text - multiple sections?
+% TODO: future work
 
 %==============================================================================
 
