@@ -19,6 +19,9 @@
 \usepackage{listings}
 \usepackage[utf8]{inputenc}
 \usepackage{fancybox}
+\usepackage{chngcntr}
+
+\counterwithout{footnote}{chapter}
 
 \lstset{
   basicstyle=\ttfamily,
@@ -109,7 +112,7 @@ The remainder of this report will focus on the mathematics underlying each of th
 \label{spark}
 \section{Apache Spark}
 
-A new big data processing paradigm in the form of cluster computing has become widely popular in recent years. It is a model where data-parallel computations are executed on clusters of unreliable machines by systems that provide scheduling, fault tolerance and load balancing\cite{Spark}. Hadoop MapReduce was the first software framework to implement these principles\cite{MapReduce}, with systems like Dryad and Map-Reduce-Merge generalizing the supported types of data flows. These system achieve fault tolerance and scalability by supplying the user with a means of expressing computation as an acyclic data flow graph which passes the input data through a set of operations. This enables the underlying system to handle any occurring faults as well as scheduling without any user interaction.
+A new big data processing paradigm in the form of cluster computing has become widely popular in recent years. It is a model where data-parallel computations are executed on clusters of unreliable machines by systems that provide scheduling, fault tolerance and load balancing\cite{Spark}. Hadoop MapReduce was the first software framework to implement these principles\cite{MapReduce}, with systems like Dryad\cite{Dryad} and Map-Reduce-Merge\cite{MRM} generalizing the supported types of data flows. These system achieve fault tolerance and scalability by supplying the user with a means of expressing computation as an acyclic data flow graph which passes the input data through a set of operations. This enables the underlying system to handle any occurring faults as well as scheduling without any user interaction.
 
 Apache Spark is one of the latest big data processing frameworks which implements the cluster computing model. One of its primary advantages over Hadoop is that it can perform in-memory data processing, while Map-Reduce persists all outputs back to disk after a map or reduce action. This extends the scope of problems which can be solved efficiently by Spark to also include applications that reuse a working set of data across multiple parallel operations. It is impractical to implement these kinds of apps under Hadoop as between each iteration of an algorithm over the working set, the job must reload the data from disk, causing unnecessary overhead, resulting in degraded performance. Examples include iterative jobs and interactive analysis\cite{Spark}.
 
@@ -125,7 +128,7 @@ To achieve its goals, Spark introduces an abstraction called resilient distribut
 
 \subsection{Basics of the RDD API}
 
-An RDD is a read-only partitioned collection of records. It supports a series of methods that resemble operations, available to most collections in a functional programming language\footnote{Despite the nature of the RDD based API, code written in Spark does not need to adhere to the principles of pure functional programing.}. RDDs can only be created through deterministic operations on either data in stable storage or other RDDS. These kind of functions are known as transformations -- examples include \textit{map}, \textit{filter}, \textit{flatMap} and others. Transformations are lazy\footnote{A lazy function is not evaluated when it is called, but rather when something else tries to access its result.} operations that define a new RDD, which is typically the result of applying the same function to every data item in the source RDD -- making Spark ideal for batch processing. By chaining together several of these transformations a user can define a directed acyclic graph (DAC) of operations the data needs to pass through (achieved in a parallel fashion).
+An RDD is a read-only partitioned collection of records. It supports a series of methods that resemble operations, available to most collections in a functional programming language\footnote{Despite the nature of the RDD based API, code written in Spark does not need to adhere to the principles of pure functional programing.}. RDDs can only be created through deterministic operations on either data in stable storage or other RDDs. Such functions are known as transformations -- examples include \textit{map}, \textit{filter}, \textit{flatMap} and others. Transformations are lazy\footnote{A lazy function is not evaluated when it is called, but rather when something else tries to access its result.} operations that define a new RDD, which is typically the result of applying the same function to every data item in the source RDD -- making Spark ideal for batch processing. By chaining together several of these transformations a user can define a directed acyclic graph (DAC) of operations the data needs to pass through (achieved in a parallel fashion).
 
 Along with transformations, the RDD API also supports actions. These are operations that return a value to the application or export data to a storage system. Examples of actions include - \textit{count}, \textit{collect}, \textit{reduce} and others. Typically a user would define a DAC of transformations to be performed on some data source, these operations would then not be executed until an action is invoked, at which point the result of all transformations in the DAC is evaluated along with the specified action at the end. If there is a large sequence of transformations within the DAC of an RDD, that will be operated on in the end by multiple different actions (branching towards a later point in the DAC), a developer might choose to checkpoint an intermediate stage of the RDD, so that Spark does not need to recompute every operation applied to that RDD.
 
@@ -137,9 +140,9 @@ Along with transformations, the RDD API also supports actions. These are operati
 
 \subsection{RDD fault-tolerance}
 
-To begin the processing of an RDD, the individual data partitions (making up the source used to create the RDD -- typically a file in HDFS), are sent to different nodes in the computing cluster where the user defined DAC of operations is executed simultaneously for each partition (if the system could afford to allocate enough resources for a one-to-one mapping of partitions to cluster nodes). In a large scale distributed system, however, failure of individual hardware components is to be expected. When one of the clusters fails, while processing an RDD partition, Spark is able to reconstruct the lost data without notifying the user.
+To begin the processing of an RDD, the individual data partitions (making up the source used to create the RDD -- typically a file in HDFS), are sent to different nodes in the computing cluster where the user defined DAC of operations is executed simultaneously for each partition (if the system could afford to allocate enough resources for a one-to-one mapping of partitions to cluster nodes). In a large scale distributed system, however, failure of individual hardware components is to be expected. When one of the cluster nodes fails, while processing an RDD partition, Spark is able to reconstruct the lost data without notifying the user.
 
-Because RDDs provide an interface based on transformations (e.g. map, flatMap) that apply the same operations to many data items, they can efficiently provide fault-tolerance by logging the transformations used to build a dataset rather than the actual data (although checkpointing RDDs can have its advantages as previously mentioned). This log of operations is also known as the lineage of the RDD. Thus if a partition of an RDD is lost, the RDD has enough information about how it was derived from other RDDs to recompute just the missing partition\cite{RDD}. Therefore lost data can be quickly recovered without the need for costly replication.
+Because RDDs provide an interface based on transformations (e.g., map, flatMap) that apply the same operations to many data items, they can efficiently provide fault-tolerance by logging the transformations used to build a dataset rather than the actual data (although checkpointing RDDs can have its advantages as previously mentioned). This log of operations is also known as the lineage of the RDD. Thus if a partition of an RDD is lost, the RDD has enough information about how it was derived from other RDDs to recompute just the missing partition\cite{RDD}. Therefore lost data can be quickly recovered without the need for costly replication.
 
 The lineage of an RDD is a powerful property, since it ensures that a program cannot reference an RDD that it cannot reconstruct after failure -- it can always recompute all partitions from data in stable storage.
 
@@ -156,16 +159,16 @@ The Apache Spark framework provides a graph-based representation of RDDs where e
 \item metadata about its data placement
 \end{itemize}
 
-An RDD representing an HDFS file, for example, has as many partitions as the file has blocks and knows on which machine each block is on. If a map transformation were to be applied on this RDD, the resulting dataset would have the same partitions, but the map function would be applied on the parent's data when computing its elements.
+An RDD representing an HDFS file, for example, has as many partitions as the file has blocks and knows on which machine each block is located. If a map transformation were to be applied on this RDD, the resulting dataset would have the same partitions, but the map function would be applied on the parent's data when computing its elements.
 
-An important aspect of this common interface is the representation of dependencies between RDDs. They are classified into two types: \textit{narrow} dependencies, where each partition of the parent RDD is used by at most one partition of the child RDD, and \textit{wide} dependencies where multiple child partitions may depend on a single parent partition\cite{RDD}. The \textit{map} operation would be an example of a narrow dependency, where as \textit{groupByKey} would result in a wide dependency.
+An important aspect of this common interface is the representation of dependencies between RDDs. They are classified into two types: \textit{narrow} dependencies, where each partition of the parent RDD is used by at most one partition of the child RDD, and \textit{wide} dependencies where multiple child partitions may depend on a single parent partition\cite{RDD}. The \textit{map} operation would be an example of a narrow dependency, whereas \textit{groupByKey} would result in a wide dependency\footnote{Unless the RDD was explicitly hash partitioned beforehand.}.
 
 The distinction between these two forms of dependencies has two primary implications. First, narrow dependencies allow for pipelined execution on one cluster node. This means that multiple successive operations resulting in narrow dependencies can be carried out on an RDD partition in the same computing cluster, without needing to move data between cluster nodes. Wide dependencies, however, require that data from all parent partitions to be available and to be shuffled across the nodes of the cluster. Second, narrow dependencies allow for a more efficient recovery from failure, as only the lost partitions need to be recomputed -- this can also be done in parallel on different processing nodes. When there are wide dependencies in the lineage graph of an RDD, however, a single failed node could loose information derived from all parent partitions, requiring a full re-execution of all transformations in the DAC, operating on the RDD.
 
 \begin{figure}[H]
 \label{RDD dependencies}
-\caption{Examples  of  narrow  and  wide  dependencies.  Each box is an RDD, with partitions shown as shaded rectangles.}
 \includegraphics[width=1.0\textwidth]{images/rdd_dependency}
+\caption{Examples  of  narrow  and  wide  dependencies.  Each box is an RDD, with partitions shown as shaded rectangles. (Source at \cite{RDD})}
 \end{figure}
 
 \section{Shared Variables}
@@ -174,15 +177,15 @@ When invoking transformations on an RDD -- such as \textit{map} and \textit{filt
 
 If a Spark program contains a large read-only piece of data that is used in multiple parallel operations, it is preferable to distribute it to the workers only once, as opposed to including it with each closure. This is accomplished by creating a ``broadcast variable'' object which acts as a wrapper for the desired value. It ensures that it is only copied once to each worker, thus reducing network traffic and improving performance.
 
-The second type of shared variables provided by Spark are known as ``accumulators''. Workers can only ``add'' to these variables by using an associative operation, and their value can only be read by the driver program. They enable easy implementations of counters (similar to MapReduce) and provide a more imperative syntax for parallel sums. Accumulators can be defined for any data type that has a ``zero value'' and an ``add'' operation.
+Variables of the second type are known as ``accumulators''. Workers can only ``add'' to these variables by using an associative operation, and their value can only be read by the driver program. They enable easy implementations of counters (similar to MapReduce) and provide a more imperative syntax for parallel sums. Accumulators can be defined for any data type that has a ``zero value'' and an ``add'' operation.
 
 \section{Spark Streaming}
 
-In addition to its base API, Spark also provides a solution for developing applications based on sacalble, high-throughput, fault-tolerant stream processing of live data. This is achieved thanks to Spark Streaming - a system that allows data to be ingested from many sources like Kafka, Flume, Kinesis, or TCP sockets, and later processed using complex algorithms expressed with high-level functions.
+In addition to its base API, Spark also provides a solution for developing applications based on scalable, high-throughput, fault-tolerant stream processing of live data. This is achieved thanks to Spark Streaming - a system that allows data to be ingested from many sources like Kafka, Flume, Kinesis, or TCP sockets, and later processed using complex algorithms expressed with high-level functions.
 
-Once a Spark program defines a input data source, Spark Streaming can receive a live data stream from the specified source, which is then divided into batches that are later processed by the Spark engine. The primary abstraction that implements this operation is the \textit{discretized stream} or \textit{DStream}\cite{DStream}. It is represented internally as a sequence of RDDs.
+Once a Spark program defines an input data source, Spark Streaming can receive a live data stream from the specified source, which is then divided into batches that are later processed by the Spark engine. The primary abstraction that implements this operation is the \textit{discretized stream} or \textit{DStream}\cite{DStream}. It is represented internally as a sequence of RDDs.
 
-Once a DStream has been created from a specified live data source (e.g. Kafka, an HDFS directory, whose content is being simultaneously altered by a different application, etc.) or alternatively from a different DStream, it begins to store or log any new information it has received. A program utilizing Spark Streaming needs to also specify a batch interval to the streaming context -- used to configure all DStreams for that application. At the end of every interval the DStream produces an RDD, containing all the data output from the specified source, since the start of the interval. The resulting RDDs are then processed by the remaining application logic -- various transformations and actions. Finally, the batch interval must be set based on the latency requirements of  the application and the available cluster resources.
+Once a DStream has been created from a specified live data source (e.g., Kafka, an HDFS directory, whose content is being simultaneously altered by a different application, etc.) or alternatively from a different DStream, it begins to store or log any new information it has received. A program utilizing Spark Streaming needs to also specify a batch interval to the streaming context -- used to configure all DStreams for that application. At the end of every interval the DStream produces an RDD, containing all the data output from the specified source, since the start of the interval. The resulting RDDs are then processed by the remaining application logic -- various transformations and actions. Finally, the batch interval must be set based on the latency requirements of  the application and the available cluster resources.
 
 \section{MLlib}
 
@@ -196,13 +199,13 @@ MLlib also inter-operates well with Spark's other major components. Thanks to Sp
 \chapter{K-Means Clustering}
 \label{kmeans}
 
-A long time pursuit in the field of artificial intelligence and machine learning has been to grant machines the ability to differentiate between discrete objects with similar or vastly different properties and to be able to identify and classify them. At a high level, an AI would need to be able to examine the features of an object, which has not been previously encountered and create an internal, digital representation of it. Then the machine would need to perform a computation on that model to extract meaning from it and predict the nature of the object, without human input - i.e. explicitly providing a label.
+A long time pursuit in the field of artificial intelligence and machine learning has been to grant machines the ability to differentiate between discrete objects with similar or vastly different properties and to be able to identify and classify them. At a high level, an AI would need to be able to examine the features of an object, which has not been previously encountered and create an internal, digital representation of it. Then the machine would need to perform a computation on that model to extract meaning from it and predict the nature of the object, without human input - i.e., explicitly providing a label.
 
 Recent developments in image processing and robotics have had a great impact on the field of machine learning, in regards to allowing systems that employ these practices to interact more directly in the real world. The aim of this paper, however, is not to cover techniques for creating a mapping from real world objects to internal, machine friendly representations of their properties, but rather to outline the implementation of algorithms for operating on said representations -- focusing on cluster analysis.
 
 Cluster analysis is concerned with the task of grouping a set of objects in a way, such that objects in the same group (known as a cluster) are more similar to each other than those in other groups\cite{MLIntro}. It is commonly used in statistical data analysis as well as data mining. Along with machine learning, cluster analysis has applications in other fields such as pattern recognition, information retrieval, biometrics and others.
 
-In cluster analysis, different approaches to the problem of groping data together can vary greatly -- algorithms can differ in their notation regarding what constitutes a cluster, as well as how to find them. Popular definitions of clusters include: groups with small distances between the individual cluster members, dense areas of the data space or specific statistical distributions. Given a way of evaluating the quality of a particular assignment of individuals to groups, clustering can also be described as an optimization problem, were we are trying to maximize that value.
+In cluster analysis, different approaches to the problem of grouping data together can vary greatly -- algorithms can differ in their notation regarding what constitutes a cluster, as well as how to find them. Popular definitions of clusters include: groups with small distances between the individual cluster members, dense areas of the data space or specific statistical distributions. Given a way of evaluating the quality of a particular assignment of individuals to groups, clustering can also be described as an optimization problem, were we are trying to maximize that value.
 
 K-Means clustering is an examples of cluster analysis with a centroid-based model\cite{TopTen}. It was originally used in signal processing as a method for vector quantization. K-Means functions by partitioning \texttt{N} observable objects into \texttt{K} distinct clusters, where every object belongs to the cluster with the nearest mean  -- here these observations will only take the form of N-dimensional data points. The actual clusters are represented as a central vector (N-dimensional point), which does not necessarily belong to the input set.
 
@@ -222,13 +225,9 @@ K-Means clustering is an examples of cluster analysis with a centroid-based mode
 \caption{Examples of three distinct clusters in 3 dimensional space}
 \end{figure}
 
-When the number of centroids \texttt{K} is fixed, K-Means clustering provides a formal definition of an optimization problem: find the \texttt{K} cluster centers and assign the input data points to the nearest center, such that the sum of squared distances from the observed points to their respective centers is minimized. This is expressed by the following formula:
+When the number of centroids \texttt{K} is fixed, K-Means clustering provides a formal definition of an optimization problem: find the \texttt{K} cluster centers and assign the input data points to the nearest center, such that the sum of squared distances from the observed points to their respective centers is minimized. This is expressed by the Within-Cluster Sum of Squares (WCSS) formula:
 
-\begin{figure}[H]
-\label{wcss}
-\[ \scalebox{2}{$ arg_{s} min \sum_{i=1}^{k}\sum_{x \in S} \|x - \mu_{i} \|^{2} $} \]
-\caption{Within-Cluster Sum of Squares (WCSS)}
-\end{figure}
+\[ \scalebox{2}{$ arg_{s} min \sum_{i=1}^{k}\sum_{x \in S} \|x - \mu_{i} \|^{2} $} \]\\
 
 Here $x_{1}$, $x_{2}$ ... $x_{n}$ is the set of observations in the form of multi-dimensional data points, $S_{1}$, $S_{2}$ .. $S_{k}$ are the \texttt{K} partitions of data points that are assigned to the \texttt{K} centers, and $\mu_{i}$ is the value of the centroid vector for partition $S_{i}$. This value is also referred to as the within-cluster sum of squares (WCSS) or the loss for the particular clustering\cite{MLIntro}.
 
@@ -252,7 +251,7 @@ These two phases are repeated \textit{t} times, providing a better heuristic ans
 \begin{algorithm}
 \caption{Iterative K-Means}\label{iterative}
 \begin{algorithmic}[1]
-\State Given: \textit{k}, iterations \textit{t}, data set \textit{X}
+\State Given: \textit{k}, iterations \textit{t}, collection of centroids \textit{C}, data set \textit{X}
 \State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
 \For {i = 1 to t}
     \State v $\gets$ 0
@@ -281,12 +280,12 @@ Mini-Batch K-Means clustering\cite{Mini} aims to resolve the scalability issue w
 
 It functions by taking small sample chunks of data form a source (mini-batches) and processing them one at a time. These mini-batches can be randomly sampled from a stored collection of data or they could be the output of a live data stream where each chunk needs to only be processed once without the need to store previous chunks.
 
-Given an initial set of \textit{k} means and a considered mini-batch \textit{M}, the algorithm assigns each observed data point to one of the \textit{k} centers. For each point the weight of the closest center is increased by one and the center is updated according to the formula: $center = (1 - learningRate)cener + learningRate * observedPoint$ where the learning rate is equal to $\frac{1}{clusterWeight}$.
+Given an initial set of \textit{k} means and a considered mini-batch \textit{M}, the algorithm assigns each observed data point to one of the \textit{k} centers. For each point the weight of the closest center is increased by one and the center is updated according to the formula: $center = (1 - learningRate)center + learningRate * observedPoint$ where the learning rate is equal to $\frac{1}{clusterWeight}$.
 
 \begin{algorithm}
 \caption{Mini-batch K-Means}\label{mini-batch}
 \begin{algorithmic}[1]
-\State Given: \textit{k}, mini-batch size \textit{b}, iterations \textit{t}, data set \textit{X}
+\State Given: \textit{k}, mini-batch size \textit{b}, iterations \textit{t}, collection of centroids \textit{C}, data set \textit{X}
 \State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
 \State v $\gets$ 0
 \For{\textit{i} = 1 to \textit{t} }
@@ -307,7 +306,7 @@ Given an initial set of \textit{k} means and a considered mini-batch \textit{M},
 \end{algorithmic}
 \end{algorithm}
 
-This algorithm aims to provide an equal contribution, in regards to forming the centroids, for each observed point. However, because the data source could be a live stream where the centers of the logically formed clusters change more substantially over time, there is a proposed alteration to the algorithm where older observations have a smaller, decaying impact on the locations of the centers in comparison to newer observations\cite{Non-Stationary}. This can be achieved by changing the learning rate to a constant in the range $\in (0,1)$.
+This algorithm aims to provide an equal contribution, in regards to forming the centroids, for each observed point. However, because the data source could be a live stream where the centers of the logically formed clusters change more substantially over time, there is a proposed alteration to the algorithm where older observations have a smaller, decaying impact on the locations of the centers in comparison to newer observations\cite{Non-Stationary}. This can be achieved by changing the learning rate to a constant in the range $(0,1)$.
 
 %==============================================================================
 
@@ -334,13 +333,13 @@ In the RDD based implementation of standard K-Means, MLlib exposes only a few fu
 
 The return value of this method (the result of running the algorithm) is a \texttt{KMeansModel} object. The representation of this object is an array with \texttt{K} vectors, each holding the value of a cluster center. It is important to note that that the output of a clustering job is not a mapping from input points to which center they belong to, but rather simply the values of the specified \texttt{K} centers. In order to obtain a mapping, a user would need to run a subsequent job, using the \texttt{KMeansModel} object to create a collection of key -- value pairs.
 
-The \texttt{KMeansModel} object also includes the \texttt{computeCost()} method which calculates the loss of a model (i.e. the Within-Cluster Sum of Squares), given a set of input data points. This can be performed on any collection of data points as a measurement of how suitable the model is for the particular dataset, however, it is usually ran with the same RDD of vectors used to train the model.
+The \texttt{KMeansModel} object also includes the \texttt{computeCost()} method which calculates the loss of a model (i.e., the Within-Cluster Sum of Squares), given a set of input data points. This can be performed on any collection of data points as a measurement of how suitable the model is for the particular dataset, however, it is usually ran with the same RDD of vectors used to train the model.
 
 Due to the fact that most clustering algorithms are merely trying to generate a set of centroids to fit against observed data points and that the WCSS is a reasonable performance measure for these algorithms the \texttt{KMeansModel} object is used as the output of all K-Means jobs.
 
 \subsection{Algorithm details}
 
-The operation performed by the \texttt{train()} method is to create an instance of the \texttt{KMeans} object (holding the implementation of the actual algorithm), to set the values of all provided parameters and to call the \texttt{run()} method. The \texttt{run()} method in turn is used to only to transform the input data. 
+The operation performed by the \texttt{train()} method is to create an instance of the \texttt{KMeans} object (holding the implementation of the actual algorithm), to set the values of all provided parameters and to call the \texttt{run()} method. The \texttt{run()} method in turn is used only to transform the input data. 
 
 The provided information consisting of N-dimensional points are represented as \texttt{DenseVectors}\footnote{A \texttt{DenseVector} is a collection where the value of every dimension of the vector is represented by a \texttt{Double}. In contrast a \texttt{SparseVector} does not include information of dimensions with a value of zero and is therefore represented by a mapping from indices to values for every non-zero dimension.} in MLlib. However, this algorithms also aims to make use of the triangle inequality, to gain better performance when computing the nearest centroid to a given point\cite{Triangle}. To achieve this, the \texttt{run()} method computes the Euclidean norm for each point and zips the two collections together to form an RDD of \texttt{VectorWithNorm} objects.
 
@@ -348,13 +347,13 @@ Finally the RDD of \texttt{VectorWithNorm} objects is passed to the \texttt{runA
 
 Alternatively, the centroids could be initialized by running the K-Means++ algorithm\cite{PlusPlus}. When K-Means++ is ran on a given dataset, it tries to find dissimilar cluster centers -- it starts with a random center and then performs passes where more centers are chosen with a proportional probability to the squared distance to their current cluster set. This method is far more expensive than the random initialization as it involves effectively running two separate algorithms on the data one after another. However, it is more likely that the final result will be of greater quality as it is likely to avoid some of the pitfalls related to poor centroid initialization. One way to mitigate this issue would be to run the K-Means++ algorithms on a small sample of the observed data, with a similar distribution, although the current API does not provide this option.
 
-Once the values of the centroid vectors have been set, the algorithm begins its first of \texttt{maxIterations} passes on the data (the loop is also terminated if the centroids converge -- i.e. when an iteration of the algorithm has no effect on the location of the \texttt{K} centers). At the star of the, broadcast variables for the current values of the centroids and a cost accumulator (used for logging) are created, so that they can be more efficiently used by different processing nodes. The rest of the algorithm is implemented by partitioning the set of input points and mapping an identical sequential operation across all the created partitions. 
+Once the values of the centroid vectors have been set, the algorithm begins its first of \texttt{maxIterations} passes on the data (the loop is also terminated if the centroids converge -- i.e., when an iteration of the algorithm has no effect on the location of the \texttt{K} centers). At the star of the iteration, broadcast variables for the current values of the centroids and a cost accumulator (used for logging) are created, so that they can be more efficiently used by different processing nodes. The rest of the algorithm is implemented by partitioning the set of input points and mapping an identical sequential operation across all the created partitions. 
 
-At each cluster node, operating on a partition of the RDD of \texttt{VectorWithNorm} objects, the value of the centroids is retrieved from the previously cerated broadcast variable. Two blank arrays with a size equal to \texttt{K} are also created -- an array of sums for adding the values of observed point that ``attach'' to a particular centroid, and an array of weights for tracking how many points have ``attached'' to each centroid. Then, for each point in the partition, the closest centroid to that point is computed. The \texttt{findClosest()} helper method takes the processed point and array of center values and returns the index of the closest center in the array along with the distance to it. This is the method that required the input data to be converted to \texttt{VectorWithNorm} objects so that it can  make use of the triangle inequality optimization to compute the closest center faster\cite{Triangle}. After the index of the nearest centroid has been retrieved, the value of the weights array at that index is incremented, the values of each dimension of the considered point are added to the dimensions of the \texttt{Vector} object at the same index of the sums array and the distance between the centroid and the point is added to the accumulator.
+At each cluster node, operating on a partition of the RDD of \texttt{VectorWithNorm} objects, the value of the centroids is retrieved from the previously created broadcast variable. Two blank arrays with a size equal to \texttt{K} are also created -- an array of sums for adding the values of observed point that ``attach'' to a particular centroid, and an array of weights for tracking how many points have ``attached'' to each centroid. Then, for each point in the partition, the closest centroid to that point is computed. The \texttt{findClosest()} helper method takes the processed point and array of center values and returns the index of the closest center in the array along with the distance to it. This is the method that required the input data to be converted to \texttt{VectorWithNorm} objects so that it can  make use of the triangle inequality optimization to compute the closest center faster\cite{Triangle}. After the index of the nearest centroid has been retrieved, the value of the weights array at that index is incremented, the values of each dimension of the considered point are added to the dimensions of the \texttt{Vector} object at the same index of the sums array and the distance between the centroid and the point is added to the accumulator.
 
-Once all of the points have been processed, each partition outputs a collection of tuples with the following three values: the index of a centroid, the value that was accumulated at the same index in the sums array of that partition and the number of point that were added up to create the value in the sums array (i.e. the value of the weights array at that index for the same partition). The first value of the tuple (the centroid index) is then used as a key to group the outputs of the different partitions -- all tuples with an identical first element create one tuple where its second and third elements are the result of summing those elements across all relevant tuples.
+Once all of the points have been processed, each partition outputs a collection of tuples with the following three values: the index of a centroid, the value that was accumulated at the same index in the sums array of that partition and the number of points that were added up to create the value in the sums array (i.e., the value of the weights array at that index for the same partition). The first value of the tuple (the centroid index) is then used as a key to group the outputs of the different partitions -- all tuples with an identical first element create one tuple where its second and third elements are the result of summing those elements across all relevant tuples.
 
-Finally, the cluster centroids are updated by changing the value of each centroid at a particular index to the second element, divided by the third element of the tuple with a key (first element) equal to the index of that centroid. When reassigning each cluster center, the algorithm checks if the new value of the center is nearly equivalent to its previous value\footnote{The algorithm checks to see if the distance between the new and old value of the centroid is less than $epsion^2$, where $epsilon$ is a predefined value.}.  If this is the case for all cluster centers then the algorithm considers that the result has converged and terminates, even if not all user specified iterations over the data have been executed. The function's output is a \texttt{KMeansModel} object, as discussed previously, generated from the final array of cluster centers.
+Finally, the cluster centroids are updated by changing the value of each centroid at a particular index to the second element, divided by the third element of the tuple with a key (first element) equal to the index of that centroid. When reassigning each cluster center, the algorithm checks if the new value of the center is nearly equivalent to its previous value\footnote{The algorithm checks to see if the distance between the new and old value of the centroid is less than $\epsilon^2$, where $\epsilon$ is a predefined value.}.  If this is the case for all cluster centers then the algorithm considers that the result has converged and terminates, even if not all user specified iterations over the data have been executed. The function's output is a \texttt{KMeansModel} object, as discussed previously, generated from the final array of cluster centers.
 
 \begin{figure}[H]
 \centering
@@ -382,17 +381,17 @@ For this reason Mini-batch K-Means was seen as a good example for implementing a
 
 \subsection{API details}
 
-As was the case with Iterative K-Means the user exposed API of Streaming K-Means is fairly simple, however, there are a several notable differences that arise from the use of streams. Firstly, as opposed to simply calling a \texttt{train()} method and receiving a \texttt{KMeansModel} object, one needs to instantiate a \texttt{StreamingKMeans} object and then call a series of mutator methods to provide the input parameters to the algorithm and establish the initial state of the \texttt{K} centroids. These methods include:
+As was the case with Iterative K-Means the user exposed API of Streaming K-Means is fairly simple, however, there are several notable differences that arise from the use of streams. Firstly, as opposed to simply calling a \texttt{train()} method and receiving a \texttt{KMeansModel} object, one needs to instantiate a \texttt{StreamingKMeans} object and then call a series of mutator methods to provide the input parameters to the algorithm and establish the initial state of the \texttt{K} centroids. These methods include:
 
 \begin{itemize}
 \item \texttt{setK()}: sets the number of cluster centers
 \item \texttt{setDecayFactor()}: sets the forgetfulness of centroids
 \item \texttt{setHalfLife()}: sets the decay factor of centroids to $\exp(log(0.5) / halflife)$
 \item \texttt{setInitialCenters()}: allows the user to manually enter the initial values for the \texttt{K} centers along with their staring weights - good to use if there are strong indications of what the data distribution will be like or if the user has a previously trained model that they would like to place in a streaming environment
-\item \texttt{setRandomCenters()}: allows the user to specify specify the dimensions of the \texttt{K} centers, along with their starting weights and a seed. These parameters will be used to assign random initial centroids
+\item \texttt{setRandomCenters()}: allows the user to specify the dimensions of the \texttt{K} centers, along with their starting weights and a seed. These parameters will be used to assign random initial centroids
 \end{itemize}
 
-The two alternatives for assigning the initial values of the \texttt{K} centroids are of particular interest. In contrast with the the implementation for standard K-Means there is no option to set the initial values of the centroids to randomly selected points from the input set, or to run any centroid selection algorithm. This could be because the developers assume that the data available in the first encountered mini-batch could be either too small or unrepresentative of the expected distribution of points as time progresses. In fact the option to set a large starting weight for the initial centroids can be used to mitigate the effect of poorly distributed initial mini-batches.
+The two alternatives for assigning the initial values of the \texttt{K} centroids are of particular interest. In contrast with the implementation for standard K-Means there is no option to set the initial values of the centroids to randomly selected points from the input set, or to run any centroid selection algorithm. This could be because the developers assume that the data available in the first encountered mini-batch could be either too small or unrepresentative of the expected distribution of points as time progresses. In fact the option to set a large starting weight for the initial centroids can be used to mitigate the effect of poorly distributed initial mini-batches.
 
 Once all initialization has been completed, the algorithm can start executing by calling the \texttt{trainOn()} method and supplying an input discretized stream (\texttt{DStream}) of \texttt{Vector} objects. This method's implementation is to simply call the centroid updating algorithm for every RDD (mini-batch) produced by the DStream. After a certain amount of time has passed, or the stream has for some reasuon terminated, a user can inspect the latest value of the \texttt{K} centroids by calling the \texttt{latestModel()} method. Thus the final output of the Streaming K-Means algorithm is a \texttt{StreamingKMeansModel} object -- similar to the \texttt{KMeansModel} returned by Iterative K-Means, however, here a user also has access to the final weights attached to each centroid.
 
@@ -400,20 +399,20 @@ Once all initialization has been completed, the algorithm can start executing by
 
 Streaming K-Means functions primarily by making periodic updates to its \texttt{model} variable. It is an object of type \texttt{StreamingKMeansModel} -- a child inheriting from \texttt{KMeansModel} that also includes an array of weights for each of the \texttt{K} centers, along with an \texttt{update()} method. The \texttt{update()} method is responsible for changing the values of the \texttt{model} variable by operating on a single mini-batch -- to achieve this the program makes a call to \texttt{update()} from the \texttt{trainOn()} method for each RDD obtained from the DStream.
 
-The \texttt{update()} function, invoked with an RDD of \texttt{Vector} objects, begins by using the input data to create an RDD of tuples with the following form (\texttt{closestCenterIndex}, (\texttt{originalPoint}, \texttt{1})). It then defines a \texttt{mergeContribs} function which takes two tuples of the form (\texttt{Vector}, \texttt{Long}) and produces another tuple with elements equal to the sum of the respective elements in the input tuples. The \texttt{aggregateByKey()} transformation is then invoked on the RDD of tuples with a (\texttt{tvectorOfZeroes}, \texttt{0}) tuple as a starting value for each aggregated group and the \texttt{mergeContibs} function as a combining operation. This in effect sums the value of all points ``attached'' to a particular centroid and counts how many there are. Before changing the values of the existing centroids, however, a discount is applied to the weights array, allowing the algorithm to diminish the impact of old observations.
+The \texttt{update()} function, invoked with an RDD of \texttt{Vector} objects, begins by using the input data to create an RDD of tuples with the following form (\texttt{closestCenterIndex}, (\texttt{originalPoint}, \texttt{1})). It then defines a \texttt{mergeContribs} function which takes two tuples of the form (\texttt{Vector}, \texttt{Long}) and produces another tuple with elements equal to the sum of the respective elements in the input tuples. The \texttt{aggregateByKey()} transformation is then invoked on the RDD of tuples with a (\texttt{vectorOfZeroes}, \texttt{0}) tuple as a starting value for each aggregated group and the \texttt{mergeContibs} function as a combining operation. This in effect sums the value of all points ``attached'' to a particular centroid and counts how many there are. Before changing the values of the existing centroids, however, a discount is applied to the weights array, allowing the algorithm to diminish the impact of old observations.
 
 Using the produced array of \texttt{K} tuples, each centroid corresponding to a tuple is updated as follows:
 
 \begin{center}
 \begin{BVerbatim}
-lambda = numberOfSummedPoints / currentCentroidrWeight
+lambda = numberOfSummedPoints / currentCentroidWeight
 contributionVector = contributionVector * lambda
 currentCentroid = currentCentroid * (currentCentroidWeight - 1)
-cuccentCentroid = currentCentroid + contibutionVector
+currentCentroid = currentCentroid + contibutionVector
 \end{BVerbatim}
 \end{center}
 
-As a final step the algorithm computes whether the cluster center with smallest weight is dying -- i.e. its weight is more than $10^8$ time smaller than the weight the the largest cluster. If this is the case the largest cluster is split in two and the centroid of the smallest cluster is destroyed.
+As a final step the algorithm computes whether the cluster center with smallest weight is dying -- i.e., its weight is more than $10^8$ time smaller than the weight of the largest cluster. If this is the case the largest cluster is split in two and the centroid of the smallest cluster is destroyed.
 
 \begin{figure}[H]
 \centering
@@ -436,7 +435,7 @@ As a final step the algorithm computes whether the cluster center with smallest 
 \chapter{Proposed Extension to Spark/MLlib}
 \label{propose}
 
-One of the main drawbacks of the Iterative (standard) K-Means algorithm is its reliance on  multiple passes over the entirety of observed data. It does this in an attempt to minimize the Within-Cluster Sum of Squares (WCSS) value -- i.e. the loss of the resulting model of \texttt{K} centroids, however, it is also prone to get stuck in local maximums. Therefore its execution has the potential to incur a massive performance overhead, while offering little in added quality.
+One of the main drawbacks of the Iterative (standard) K-Means algorithm is its reliance on  multiple passes over the entirety of observed data. It does this in an attempt to minimize the Within-Cluster Sum of Squares (WCSS) value -- i.e., the loss of the resulting model of \texttt{K} centroids, however, it is also prone to get stuck in local maximums. Therefore its execution has the potential to incur a massive performance overhead, while offering little in added quality.
 
 This paper covers a variety of possible alternative \textit{Online} clustering algorithms that, through performing a single pass over the provided data, can produce models that sacrifice little in terms of quality, but offer a substantial boost in performance. Certain approaches can overcome additional limitations of Standard K-Means, such as having to manually select a value for \texttt{K} without knowing how many logical centers the data might contain. These algorithms will first be examined from a mathematical perspective.
 
@@ -444,9 +443,9 @@ This paper covers a variety of possible alternative \textit{Online} clustering a
 
 One of the most basic forms of clustering that rely on a single pass of the observed data is Lloyd's Online K-Means algorithm. As is the case with the previously discussed algorithms, Online K-Means is a competitive learning algorithm, where, for each point belonging to a given input set, the \texttt{K} centroids compete to have that point ``attach'' to them -- the winner being decided based on which centroid is closest at the time the point is being considered\cite{MLIntro}. All of this serves to reduce the WCSS value.
 
-A distinct aspect of Online clustering algorithms that is exemplified by Lloyd's Online algorithm is how every observed point has an immediate impact on its closest centroid. In the previous case of Iterative K-Means, the closest center for each observed point is calculated without making adjustments to the locations of the centroids, which are later resigned to the average of all observed points that belong to the cluster they define. Here, upon encountering an input point and calculating which cluster it should belong to, the centroid of that cluster is immediately moved in the direction of the observed point, before considering the next one.
+A distinct aspect of Online clustering algorithms that is exemplified by Lloyd's Online algorithm is how every observed point has an immediate impact on its closest centroid. In the previous case of Iterative K-Means, the closest center for each observed point is calculated without making adjustments to the locations of the centroids, which are later reassigned to the average of all observed points that belong to the cluster they define. Here, upon encountering an input point and calculating which cluster it should belong to, the centroid of that cluster is immediately moved in the direction of the observed point, before considering the next one.
 
-The amount of change a ``winning'' centroid experiences when encountering a new point is determined by the learning rate -- often depicted as $\eta$. In the original version of Lloyd's algorithm, the learning rate is expressed as the reciprocal of the number of points that had previously ``attached'' to a given centroid -- the wight of that centroid. 
+The amount of change a ``winning'' centroid experiences when encountering a new point is determined by the learning rate -- often depicted as $\eta$. In the original version of Lloyd's algorithm, the learning rate is expressed as the reciprocal of the number of points that had previously ``attached'' to a given centroid -- the weight of that centroid. 
 
 \begin{center}
 \begin{BVerbatim}
@@ -454,9 +453,9 @@ newCenter = oldCenter + learningRate * (observedPoint - oldCenter)
 \end{BVerbatim}
 \end{center}
 
-It is clear to see that with with a learning rate of 0, the center value would not change at all, and with a learning rate on 1, the new value of the center is the same as the observed point (i.e. 100\% of the value of that center is learned from the most recent point). Therefore, because Lloyd defines learning rate as 1/\textit{centerWeight}, as our input stream of data continues, each new encountered point will have a smaller and smaller impact on its closest centroid.
+It is clear to see that with a learning rate of 0, the center value would not change at all, and with a learning rate of 1, the new value of the center is the same as the observed point (i.e., 100\% of the value of that center is learned from the most recent point). Therefore, because Lloyd defines learning rate as 1/\textit{centerWeight}, as our input stream of data continues, each new encountered point will have a smaller and smaller impact on its closest centroid.
 
-A possible alternative is to set the learning rate to a constant in the range $\in$ (0,1). This approach allows the algorithm to gradually forget the effects of older observed points, which lets it adjust better to the most recently formed logical centers.
+A possible alternative is to set the learning rate to a constant in the range $(0,1)$. This approach allows the algorithm to gradually forget the effects of older observed points, which lets it adjust better to the most recently formed logical centers.
 
 \begin{figure}[H]
 	\centering
@@ -465,19 +464,19 @@ A possible alternative is to set the learning rate to a constant in the range $\
     \caption{The empty circles are the centers and the black circle is an observed point. Online K-Means moves the closest center towards the direction of ($x-c_i$) by a factor of $\eta$.} 
 \end{figure}
 
-It is also important to note that Online K-Means is quite sensitive to the initial values of the \texttt{K} centroids. Because of its method of operation, if the centroids were cerated with poor starting values (e.g. two of the centroids being fairly close to one another), the final result could differ based on the order in which the points were observed.
+It is also important to note that Online K-Means is quite sensitive to the initial values of the \texttt{K} centroids. Because of its method of operation, if the centroids were cerated with poor starting values (e.g., two of the centroids being fairly close to one another), the final result could differ based on the order in which the points were observed.
 
 \begin{algorithm}
 \caption{Online K-Means}\label{online-alg}
 \begin{algorithmic}[1]
-\State Given: \textit{k}, data set \textit{X}
+\State Given: \textit{k}, collection of centroids \textit{C}, data set \textit{X}
 \State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
 \State Initialize counters $n_{1}, n_{2} ... n_{k}$ with a zero value
 \For {\textit{x} $\in$ \textit{X}}
-    \State \textit{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
+    \State \textit{i}  $\gets$ \textit{getClosestCenterIndex}(\textit{C},x)
     \State \textbf{z}  $\gets$ C[i] \hspace{2.25cm} // Get the closest center
     \State n[i] $\gets$ n[i] + 1 \hspace{1.3cm} // Update the number of point in this cluster
-    \State \textbf{z} $\gets$ z + $\frac{1}{n[i]}$ * (x - z) \hspace{0.35cm} // Update the cluster center
+    \State \textbf{z} $\gets$ z + $\frac{1}{n[i]}$ $\times$ (x - z) \hspace{0.35cm} // Update the cluster center
 \EndFor
 \State \textbf{end for}
 \end{algorithmic}
@@ -487,9 +486,9 @@ It is also important to note that Online K-Means is quite sensitive to the initi
 
 In all of the clustering algorithms looked at so far a user specified value of \texttt{K} needed to be provided, before processing the available data. An expensive operation to determine a suitable \texttt{K} would be to run such an algorithm multiple times with different values of \texttt{K} and compare the resulting WCSS values of output models. This method, however, is not entirely reliable as the algorithm's intent is to find logical groups within the data, where as the value of WCSS (the loss of the produced model) will keep decreasing as \texttt{K} increases, and there is no clear indicator for when to stop\cite{LearnK}.
 
-An alternative approach would be to incrementally discover a suitable value for \texttt{K} -- i.e. start with a single centroid and add more as they are needed. The Adaptive Resonance Theory (ART) algorithm\cite{ART} is one such example. In the case of ART, instead of requiring a set value for how many centroids will be trained, the algorithm takes as input a threshold value called a \textit{vigilance} (specifying a Euclidean distance in this case). 
+An alternative approach would be to incrementally discover a suitable value for \texttt{K} -- i.e., start with a single centroid and add more as they are needed. The Adaptive Resonance Theory (ART) algorithm\cite{ART} is one such example. In the case of ART, instead of requiring a set value for how many centroids will be trained, the algorithm takes as input a threshold value called a \textit{vigilance} (specifying a Euclidean distance in this case). 
 
-Thus ART K-Means begins by assigning a single centroid to have the same initial value as a point, randomly selected from the input set. Then, for each new processed point, the nearest available centroid is identified (there will be only one at the start). If the distance between the observation and its closest centroid is less than the specified vigilance, the respective cluster center will be updated in the same manner as Online K-Means (Algorithm \ref{online-alg}). If the distance is greater than the vigilance, however, an new centroid is created at the location of the examined point.
+Thus ART K-Means begins by assigning a single centroid to have the same initial value as a point, randomly selected from the input set. Then, for each new processed point, the nearest available centroid is identified (there will be only one at the start). If the distance between the observation and its closest centroid is less than the specified vigilance, the respective cluster center will be updated in the same manner as Online K-Means (Algorithm \ref{online-alg}). If the distance is greater than the vigilance, however, a new centroid is created at the location of the examined point.
 
 \begin{figure}[H]
 	\centering
@@ -503,7 +502,7 @@ The \textit{vigilance} value used in ART K-Means effectively defines a hypersphe
 \begin{algorithm}[H]
 \caption{ART K-Means}\label{art-alg}
 \begin{algorithmic}[1]
-\State Given: a vigilance value $\rho$, data set \textit{X}
+\State Given: vigilance value $\rho$, collection of centroids \textit{C}, data set \textit{X}
 \State Initialize one \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
 \State Initialize a single counter $n_{1}$ with a value of zero
 \For {\textit{x} $\in$ \textit{X}}
@@ -512,7 +511,7 @@ The \textit{vigilance} value used in ART K-Means effectively defines a hypersphe
     \State \textbf{d} $\gets$ \textit{getDistance(x, z)} \hspace{0.3cm} // Get the distance between the point and its nearest center
     \If {$d < \rho$}
         \State n[i] $\gets$ n[i] + 1 \hspace{1.3cm} // Update the number of point in this cluster
-        \State \textbf{z} $\gets$ z + $\frac{1}{n[i]}$ * (x - z) \hspace{0.35cm} // Update the cluster center
+        \State \textbf{z} $\gets$ z + $\frac{1}{n[i]}$ $\times$ (x - z) \hspace{0.35cm} // Update the cluster center
     \Else
         \State \textit{C} $\gets$ \textit{C} + \textit{x} \hspace{0.55cm} // Create a new center with a value equal to the observed point
         \State $n_k$ $\gets$ 1 \hspace{1cm} // Create a counter for the new center with a weight of one
@@ -522,32 +521,32 @@ The \textit{vigilance} value used in ART K-Means effectively defines a hypersphe
 \end{algorithmic}
 \end{algorithm}
 
-ART K-Means does not entirely solve the issue of specifying an initial number of centroids but rather shifts the problem to choosing an optimal \textit{vigilance} value. Because it is possible to identify the extremes of any of the dimensions of the input points, however, one can adjust the vigilance to partition the observed space into a set number of equally sized hyperspheres. This overcomes a different weakness of traditional clustering algorithms, where the initial values of the \texttt{K} centroids could be insufficiently dissimilar (e.g. two centroids starting off at nearly identical coordinates).
+ART K-Means does not entirely solve the issue of specifying an initial number of centroids but rather shifts the problem to choosing an optimal \textit{vigilance} value. Because it is possible to identify the extremes of any of the dimensions of the input points, however, one can adjust the vigilance to partition the observed space into a set number of equally sized hyperspheres. This overcomes a different weakness of traditional clustering algorithms, where the initial values of the \texttt{K} centroids could be insufficiently dissimilar (e.g., two centroids starting off at nearly identical coordinates).
 
 \section{Self-Organizing Maps K-Means}
 
-All of the competitive clustering algorithms looked at so far have taken a ``winner take all'' approach -- i.e. for every new observed point, only the centroid closest to it experiences change. However, in an online learning environment where the model needs to adapt to a constant stream of new data, that is likely to alter its distribution over time, it is possible to encounter ``dead'' centroids.
+All of the competitive clustering algorithms looked at so far have taken a ``winner take all'' approach -- i.e., for every new observed point, only the centroid closest to it experiences change. However, in an online learning environment where the model needs to adapt to a constant stream of new data, that is likely to alter its distribution over time, it is possible to encounter ``dead'' centroids.
 
 For example, consider at time $t_0$ Online K-Means is run on a continuous data source that provides a distribution with three logical groups. If the state of the model were to be probed at time $t_1$ then (assuming a suitable initialization) it would correctly consist of three centroids that identify the different groups. If at time $t_2$, however, the data source stopped producing output that belongs to one of the groups (the group has ``died'') and the state of the model were to be probed afterwards, it would continue to indicate that the data consists of three distinct clusters.
 
 A way to avoid dead centers is to update not only the winner, but also a few additional centroids. In the Self-Organizing Map (SOM) each cluster center is assigned an index, which defines a neighborhood of centroids\cite{SOM} -- in this context also called neurons. When $c_i$ is the closest center to an observed point, the neighbors of $c_i$ are also moved. If the neighborhood is of size 2, then $c_{i-2}, c_{i-1}, c_i, c_{i+1}, c_{i+2}$ are all adjusted, but with less weight as the neighborhood increases.
 
-In the case of SOM K-Means each neuron is updated with respect to ``the impact of the neighborhood''. It is defined as a Gaussian function of the Euclidean distance of the locations of the neurons in the neighborhood -- for two neighboring neurons \texttt{A} and \texttt{B} the impact is:  $h(A,B) = \exp(-\sigma*distance(A, B)^2)$. Thus if $W^{\prime}$ is the closest center to an observed point \textit{X} then all neurons \textit{W} in the neighborhood are updated by the formula:
+In the case of SOM K-Means each neuron is updated with respect to ``the impact of the neighborhood''. It is defined as a Gaussian function of the Euclidean distance of the locations of the neurons in the neighborhood -- for two neighboring neurons \texttt{A} and \texttt{B} the impact is:  $h(A,B) = \exp(-\sigma \times distance(A, B)^2)$. Thus if $W^{\prime}$ is the closest center to an observed point \textit{X} then all neurons \textit{W} in the neighborhood are updated by the formula:
 
 \begin{figure}[H]
 \begin{CenteredBox}
   \begin{lstlisting}
-    $W = W + h(W^{\prime},W)*\eta*(X-W)$
+    $W = W + h(W^{\prime},W)\times\eta\times(X-W)$
   \end{lstlisting}
 \end{CenteredBox}
 \end{figure}
 
-It is clear to see that when it comes to updating the ``winner'' himself, the impact function will evaluate to 1 (the distance between the winner and himself is 0) and the formula will become:
+It is clear to see that when it comes to updating the ``winning'' center itself, the impact function will evaluate to 1 (the distance between the winner and himself is 0) and the formula will become:
 
 \begin{figure}[H]
 \begin{CenteredBox}
   \begin{lstlisting}
-    $W = W + \eta*(X-W)$
+    $W = W + \eta\times(X-W)$
   \end{lstlisting}
 \end{CenteredBox}
 \end{figure}
@@ -574,23 +573,23 @@ While this illustrates the operational model of SOM, most applications that util
     \caption{A 5x5 SOM lattice of neurons with a neighborhood of size one. Here the central neuron is closest to the observation. This updates its value along with all of its neighbors.} 
 \end{figure}
 
-After the locations of the neurons have converged, the resulting 2-D lattice will represent a \textit{topological map} of the original N-dimensional input space. The map will contain several neurons in parts of the space where there was a high density of observations, and no neurons in places that didn't have any input data. Because of this, the map can be interpreted as doing a nonlinear form of multidimensional scaling, which maps from the original N-dimensional space to two dimensions\cite{MLIntro}. Furthermore, if the map is one-dimensional (as originally discussed), the neurons are placed on the curve of maximum density in the input space -- i.e. a \textit{principal curve}\cite{SOM}.
+After the locations of the neurons have converged, the resulting 2-D lattice will represent a \textit{topological map} of the original N-dimensional input space. The map will contain several neurons in parts of the space where there was a high density of observations, and no neurons in places that didn't have any input data. Because of this, the map can be interpreted as doing a nonlinear form of multidimensional scaling, which maps from the original N-dimensional space to two dimensions\cite{MLIntro}. Furthermore, if the map is one-dimensional (as originally discussed), the neurons are placed on the curve of maximum density in the input space -- i.e., a \textit{principal curve}\cite{SOM}.
 
 \begin{algorithm}[H]
 \caption{SOM K-Means}\label{som-alg}
 \begin{algorithmic}[1]
-\State Given: dimension of neuron lattice \textit{M}, neighborhood size \textit{H},
-\State \hspace{1.1cm} tuning parameter $\sigma$, learning rate $\eta$, data set \textit{X}
+\State Given: dimension of neuron lattice \textit{M}, neighborhood size \textit{H}, tuning parameter $\sigma$
+\State \hspace{1.1cm} learning rate $\eta$, collection of neurons \textit{C}, data set \textit{X}
 \State Initialize each \textbf{c} $\in$ \textit{C} with an \textbf{x} picked randomly from \textit{X}
 \For {\textit{x} $\in$ \textit{X}}
     \State \textit{i}  $\gets$ \textit{getclosestCenterIndex}(\textit{C},x)
     \State \textbf{z}  $\gets$ C[i] \hspace{3.85cm} // Get the winning neuron's index
-    \State \textbf{z} $\gets$ z + $\eta$ * (x - z) \hspace{2.35cm} // Update the winning neuron
+    \State \textbf{z} $\gets$ z + $\eta \times$ (x - z) \hspace{2.35cm} // Update the winning neuron
     \State \textbf{N} $\gets$ getNeighborNeurons(C, H) \hspace{0.1cm} // Get all neurons in the neighborhood of the winner
     \For {n $\in$ N}
         \State \textit{d} $\gets$ getDistance(n, z) \hspace{1.3cm} // Calculate distance to the winner neuron
-        \State \textit{impact} $\gets$ $\exp(\sigma * d^2)$ \hspace{1.15cm} // Calculate the impact of the neighborhood
-        \State \textbf{n} $\gets$ n + \textit{impact} * $\eta$ * (x - n) \hspace{0.3cm} // Update the neighboring neuron
+        \State \textit{impact} $\gets$ $\exp(\sigma \times d^2)$ \hspace{1.15cm} // Calculate the impact of the neighborhood
+        \State \textbf{n} $\gets$ n + \textit{impact} $\times \eta \times$ (x - n) \hspace{0.3cm} // Update the neighboring neuron
     \EndFor
     \State \textbf{end for}
 \EndFor
@@ -602,7 +601,7 @@ After the locations of the neurons have converged, the resulting 2-D lattice wil
 
 Due to the present state of available information gathering and live data streaming technologies, real time processing of new information is becoming increasingly more desirable. As new data is constantly made available to a machine learning reliant application, its underlying model needs to continuously adapt in order to accurately reflect the present state of the world around it.
 
-The above discussed clustering algorithms provide a means of performing online unsupervised learning from a data stream, resulting in a responsive underlying model. They overcome the performance overhead of iterative data processing, as well as the requirement to persist all observed information, which would quickly become infeasible in an online learning environment. Furthermore, the presented algorithms offer a variety of input parameters and underlying model adjustment schemes, allowing for greater user choice in regards to satisfying the particular needs of an application -- e.g. is there a particular way the input space should be partitioned between clusters, should dead centroids be avoided, etc. 
+The above discussed clustering algorithms provide a means of performing online unsupervised learning from a data stream, resulting in a responsive underlying model. They overcome the performance overhead of iterative data processing, as well as the requirement to persist all observed information, which would quickly become infeasible in an online learning environment. Furthermore, the presented algorithms offer a variety of input parameters and underlying model adjustment schemes, allowing for greater user choice in regards to satisfying the particular needs of an application -- e.g., is there a particular way the input space should be partitioned between clusters, should dead centroids be avoided, etc. 
 
 \section{Implementation Challenges in Parallelizing Online Clustering Algorithms}
 
@@ -621,7 +620,7 @@ Two alternative implementations of Online K-Means were created -- one that funct
 
 \section{Implementation Using Grand Mean}
 
-The first created implementation of the Online K-Means Clustering algorithm emulates the approach take by Spark's previous developers in creating the standard iterative algorithm. The program is once again structured as a discrete batch operation, relying on Spark's RDD API.
+The first created implementation of the Online K-Means Clustering algorithm emulates the approach taken by Spark's previous developers in creating the standard iterative algorithm. The program is once again structured as a discrete batch operation, relying on Spark's RDD API.
 
 \subsection{API details}
 
@@ -637,11 +636,11 @@ The return value of the \texttt{train()} method is once again a  \texttt{KMeansM
 
 \subsection{Algorithm details}
 
-The underlying functionality of the \texttt{train()} method is to simply create an instance of the \texttt{OnlineKMeans} object, passing on the previously mentioned parameters, and invoke the object's \texttt{run()} method. As was the case with the implementation of standard K-Means, the \texttt{run()} method's function is to transform the input data into \texttt{VectorWithNorm} objects, thus enabling the use of the triangle inequality optimization for obtaining better performance when computing the nearest centroid to a given point\cite{Triangle}. Finally, the \texttt{run()} method returns a centroid model by invoking the \texttt{runAlgotithm()} function on the RDD of \texttt{VectorWithNorm} objects.
+The underlying functionality of the \texttt{train()} method is to simply create an instance of the \texttt{OnlineKMeans} object, passing on the previously mentioned parameters, and invoke the object's \texttt{run()} method. As was the case with the implementation of standard K-Means, the \texttt{run()} method's function is to transform the input data into \texttt{VectorWithNorm} objects, thus enabling the use of the triangle inequality optimization for obtaining better performance when computing the nearest centroid to a given point\cite{Triangle}. Finally, the \texttt{run()} method returns a centroid model by invoking the \texttt{runAlgorithm()} function on the RDD of \texttt{VectorWithNorm} objects.
 
-The \texttt{runAlgotithm()} function in turn parses the transformed RDD and computes the resulting centroids. It begins by using the \texttt{seed} parameter to randomly sample the RDD and extract \texttt{K} vectors, which are used as the initial locations of the cluster centers. Then a broadcast variable holding the value of the \texttt{K} centroids is created (in order to reduce network traffic) and the \texttt{mapPartitions()} transformation is invoked on the RDD. This transformation is used to map an identical sequential operation across every partition of the RDD stored on different processing nodes. In the present scenario, the sequential operation is an implementation of the Online clustering algorithm (alg. \ref{online-alg}).
+The \texttt{runAlgorithm()} function in turn parses the transformed RDD and computes the resulting centroids. It begins by using the \texttt{seed} parameter to randomly sample the RDD and extract \texttt{K} vectors, which are used as the initial locations of the cluster centers. Then a broadcast variable holding the value of the \texttt{K} centroids is created (in order to reduce network traffic) and the \texttt{mapPartitions()} transformation is invoked on the RDD. This transformation is used to map an identical sequential operation across every partition of the RDD stored on different processing nodes. In the present scenario, the sequential operation is an implementation of the Online clustering algorithm (alg. \ref{online-alg}).
 
-This step is of particular interest as it can result in greatly influencing the final result of the function. Because no additional effort has been made to manually enforce a partitioning scheme on the data, the default partitioning of the provided RDD of vectors is used. If the data held in different partitions of the RDD does not have a uniform distribution across all logical clusters, there could be a large skew in the final output of the algorithm -- e.g. data consists of 3 logical clusters and 2 partitions -- partition 1 hold all observations from 2 of the clusters, partition 2 holds all data from the last cluster.
+This step is of particular interest as it can result in greatly influencing the final result of the function. Because no additional effort has been made to manually enforce a partitioning scheme on the data, the default partitioning of the provided RDD of vectors is used. If the data held in different partitions of the RDD does not have a uniform distribution across all logical clusters, there could be a large skew in the final output of the algorithm -- e.g., data consists of 3 logical clusters and 2 partitions -- partition 1 holds all observations from 2 of the clusters, partition 2 holds all data from the last cluster.
 
 \begin{figure}[H]
 	\centering
@@ -662,22 +661,22 @@ newCenter = oldCenter + learningRate * (observedPoint - oldCenter)
 
 Here the learning rate is expressed as the reciprocal of the weight of the centroid, meaning that each new observation has a smaller and smaller impact on the location of the cluster center. Furthermore, since the coordinates of the centroid have shifted, it is necessary to recompute the vector's euclidean norm, so that subsequent input vectors can correctly identify their closest centroid. 
 
-Once all observations have been processed, every partition outputs a collection of tuples, each holding the coordinates of one of the \texttt{K} centroids along with its weight. Therefore, if the original RDD of vectors held \texttt{N} partitions, \texttt{N} * \texttt{K} tuples would be obtained. These resulting tuples present each partition's incomplete solution to the clustering problem (due to operating on a subset of the data).
+Once all observations have been processed, every partition outputs a collection of tuples, each holding the coordinates of one of the \texttt{K} centroids along with its weight. Therefore, if the original RDD of vectors held \texttt{N} partitions, \texttt{N} $\times$ \texttt{K} tuples would be obtained. These resulting tuples present each partition's incomplete solution to the clustering problem (due to operating on a subset of the data).
 
-As a final step, it is necessary to combine the \texttt{N} * \texttt{K} tuples of partial solutions in order to obtain the final result. This is achieved by aggregating groups of \texttt{N} tuples into one centroid. For each center coordinate that has not yet been considered, the closest (by euclidean distance) \texttt{N} - 1 centers are identified and then merged based on a weighted average. The produced \texttt{K} vectors are then used to instantiate a \texttt{KMeansModel} object, which is returned to the user.
+As a final step, it is necessary to combine the \texttt{N} $\times$ \texttt{K} tuples of partial solutions in order to obtain the final result. This is achieved by aggregating groups of \texttt{N} tuples into one centroid. For each center coordinate that has not yet been considered, the closest (by euclidean distance) \texttt{N} - 1 centers are identified and then merged based on a weighted average. The produced \texttt{K} vectors are then used to instantiate a \texttt{KMeansModel} object, which is returned to the user.
 
 \begin{algorithm}[H]
 \caption{Computing the grand mean of partial solutions of Online K-Means}\label{online-merge}
 \begin{algorithmic}[1]
-\State Given: \textit{N} * \textit{K} tuples of (centerCoordinate, centerWeight) $\in$ \textit{T}, an empty results set $T''$ 
+\State Given: \textit{N} $\times$ \textit{K} tuples of (centerCoordinate, centerWeight) $\in$ \textit{T}, an empty results set $T''$ 
 \For {\textit{t} $\in$ \textit{T}}
     \State \textit{T}  $\gets$ \textit{sortByDistanceTo}(\textit{t})
     \State $T'$ $\gets$ T.takeFirst(\textit{N})
     \State $t'' = ([0 ,0, .., 0], 0)$
     \For {$t' \in T'$}
     	\State totalWeight $\gets$ $t''$.weight + $t'$.weight
-        \State $t''$.center $\gets$ ($t''$.weight/totalWeight) * $t''$.center
-        \State $t'$.center $\gets$ ($t'$.weight/totalWeight) * $t'$.center
+        \State $t''$.center $\gets$ ($t''$.weight/totalWeight) $\times t''$.center
+        \State $t'$.center $\gets$ ($t'$.weight/totalWeight) $\times t'$.center
         \State $t''$.center $\gets$ $t''$.center + $t'$.center
         \State $t''$.weight $\gets$ totalWeight
     \EndFor
@@ -689,11 +688,11 @@ As a final step, it is necessary to combine the \texttt{N} * \texttt{K} tuples o
 \end{algorithmic}
 \end{algorithm}
 
-Originally, the partial solution combination phase was implemented by tracking each centroid's index (in the array of centroids that is copied over by each partition) and performing a weighted average over centroids with an identical index. This proved inadequate, however, as there is the possibility that centroids with an identical starting location could ``attach'' themselves to different clusters of the data in different partitions. Thus averaging them based on their indices could created a final centroid, situated between two clusters.
+Originally, the partial solution combination phase was implemented by tracking each centroid's index (in the array of centroids that is copied over by each partition) and performing a weighted average over centroids with an identical index. This proved inadequate, however, as there is the possibility that centroids with an identical starting location could ``attach'' themselves to different clusters of the data in different partitions. Thus averaging them based on their indices could create a final centroid, situated between two clusters.
 
 \section{Implementation Using Spark Streaming}
 
-While the previous implementation of Online K-Means demonstrates a means of computing cluster centers by performing a single pass over the RDD of observations, it has a major weakness -- the user is expected to hold all of the clustering data in storage prior to running the algorithm. This would make the Grand Mean implementation impractical for the purposes of constructing an application, relying on continuous online learning from live sources. 
+While the previous implementation of Online K-Means demonstrates a means of computing cluster centers by performing a single pass over the RDD of observations, it has a major weakness -- the user is expected to store all of the clustering data  prior to running the algorithm. This would make the Grand Mean implementation impractical for the purposes of constructing an application, relying on continuous online learning from live sources. 
 
 To overcome this downside, another version of the Online K-Means algorithm was created, which makes use of the facilities provided by Spark Streaming. In a similar fashion to the previous implementation, the new design emulates the approach taken by Spark's previous developers in creating the \texttt{StramingKMeans} class.
 
@@ -715,9 +714,9 @@ Finally, after enough batch intervals (defined by the Streaming Context) have pa
 
 \subsection{Algorithm details}
 
-Similarly to the existing Streaming K-Means program in MLlib, the presented implementation of the Online K-Means algorithm fictions by performing periodic updates to a \texttt{model} variable. It is an object of type \texttt{StreamingOnlineKMeansModel} which holds the centroid coordinates, their weights and an \texttt{update()} method. In order to keep the model relevant, the \texttt{trainOn()} method makes a call to \texttt{update()} for each RDD produced by the DStream -- supplying said RDD as an input parameter.
+Similarly to the existing Streaming K-Means program in MLlib, the presented implementation of the Online K-Means algorithm functions by performing periodic updates to a \texttt{model} variable. It is an object of type \texttt{StreamingOnlineKMeansModel} which holds the centroid coordinates, their weights and an \texttt{update()} method. In order to keep the model relevant, the \texttt{trainOn()} method makes a call to \texttt{update()} for each RDD produced by the DStream -- supplying said RDD as an input parameter.
 
-The \texttt{update()} function, having received an RDD of \texttt{Vector} objects, proceeds to create an RDD of tuples where the second element is an observed point and the first is the nearest current centroid to that point (since this operation does not effect the state of the model it is trivial to parallelize with \texttt{map()} transformation). After broadcast variables for the arrays holding the coordinates of the cluster centers and their weights are created, the RDD of tuples undergoes the \texttt{groupByKey()} and \texttt{mapPartitions()} transformations. These two operations are of particular interest as they dictate how the observations will be used to update the model.
+The \texttt{update()} function, having received an RDD of \texttt{Vector} objects, proceeds to create an RDD of tuples where the second element is an observed point and the first is the nearest current centroid to that point (since this operation does not affect the state of the model it is trivial to parallelize with \texttt{map()} transformation). After broadcast variables for the arrays holding the coordinates of the cluster centers and their weights are created, the RDD of tuples undergoes the \texttt{groupByKey()} and \texttt{mapPartitions()} transformations. These two operations are of particular interest as they dictate how the observations will be used to update the model.
 
 The \texttt{groupByKey()} operation is used to used to alter the underlying structure of an RDD from a collection of key-value pairs (split between different partitions) to objects of the form -- (key, Iterable(value)), where one or more of these objects are stored in a single partition. This means that all points that are likely to influence a particular centroid are guaranteed to be present in a single partition. Being a transformation with wide dependencies\footnote{A transformation with wide dependencies needs to shuffle data between partitions, generating additional overhead and network traffic. In contrast a transformation with narrow dependencies does not need to move data between partitions.}, calling \texttt{groupByKey()} is fairly expensive, however, it has two major upsides:
 
@@ -794,7 +793,7 @@ $$W' = W' + \eta(X - W')$$
 
 While this technique in adequate when dealing with a low-dimensional setting, such as the 3D physical space, it becomes unintuitive for a user to supply a value specifying euclidean distance between points with hundreds or thousands of dimensions -- the Curse of Dimensionality\cite{CurseOfDimensionality}. To overcome this, it is necessary to provide the user with a different means of expressing the radius of the hypersphere surrounding each centroid.
 
-The solution proposed by this paper involves normalizing the values of all centroids and observations, so that they fit within the confines of a unit hypercube -- i.e. transform the value of each dimension of a given point to fit between 0 an 1. This is achieved by defining two special vectors: \textit{max} and \textit{min}, where \textit{max} holds the maximum possible value for each dimension and \textit{min} tracks the minimum possible value of each dimensions. If normalized, the \textit{max} and \textit{min} vectors would become $[1, 1, 1, ..., 1, 1]$ and $[0, 0, 0, ..., 0, 0]$ respectively. Then, to normalize a vector $X$, for each dimension $i$ the following formula is applied:
+The solution proposed by this paper involves normalizing the values of all centroids and observations, so that they fit within the confines of a unit hypercube -- i.e., transform the value of each dimension of a given point to fit between 0 an 1. This is achieved by defining two special vectors: \textit{max} and \textit{min}, where \textit{max} holds the maximum possible value for each dimension and \textit{min} tracks the minimum possible value of each dimensions. If normalized, the \textit{max} and \textit{min} vectors would become $[1, 1, 1, ..., 1, 1]$ and $[0, 0, 0, ..., 0, 0]$ respectively. Then, to normalize a vector $X$, for each dimension $i$ the following formula is applied:
 
 $$X'[i] = \frac{X[i] - min[i]}{max[i] - min[i]}$$
 
@@ -811,7 +810,7 @@ For the purposes of the ART K-Means algorithms, one can now reasonably express t
 To run the ART K-Means algorithm, with a DStream of vectors as a live data source, it is first necessary to instantiate an \texttt{ARTK-Means} object. Then, one needs to call a small number of mutator methods to initialize the parameters of the algorithm and possibly provide the starting coordinates and weights for an unrestricted number of centroids. The possible methods are:
 
 \begin{itemize}
-\item \texttt{setA()}: \textit{a} is the percentage of the squared distance between the \textit{min} and \textit{max} vectors that will be used as the \textit{vigilance} value -- i.e. $vigilance = a * numDimensions$
+\item \texttt{setA()}: \textit{a} is the percentage of the squared distance between the \textit{min} and \textit{max} vectors that will be used as the \textit{vigilance} value -- i.e., $vigilance = a \times numDimensions$
 \item \texttt{setInitialCenters()}: allows the user to set the starting coordinates and weights of cluster centers. Because there is no required number of centroids in ART K-Means, the starting model can have as many as the user requires. If the distance between the provided centroids is less than the specified vigilance, however, the program will merge them.
 \end{itemize}
 
@@ -855,8 +854,8 @@ It would be preferable to maintain a consistent partitioning of the observed spa
     \State $c'' = ([0 ,0, .., 0], 0)$
     \For {$cen \in C'$}
     	\State totalWeight $\gets$ $c''$.weight + \textit{cen}.weight
-        \State $c''$.center $\gets$ ($c''$.weight/totalWeight) * $c''$.center
-        \State \textit{cen}.center $\gets$ (\textit{cen}.weight/totalWeight) * \textit{cen}.center
+        \State $c''$.center $\gets$ ($c''$.weight/totalWeight) $\times c''$.center
+        \State \textit{cen}.center $\gets$ (\textit{cen}.weight/totalWeight) $\times$ \textit{cen}.center
         \State $c''$.center $\gets$ $c''$.center + \textit{cen}.center
         \State $c''$.weight $\gets$ totalWeight
     \EndFor
@@ -870,7 +869,7 @@ It would be preferable to maintain a consistent partitioning of the observed spa
 
 Originally, the used centroid combination method was a sequential version of ART K-Means. There, the existing centroids were treated as the input set of observations and the clustering algorithm proceeded to generate a new set of centroids, using the current values of the \textit{min} and \textit{max} vectors. This approach proved inadequate, however, as the final results would vary based on the order in which the centroids were processed.
 
-With all of this into consideration, the \texttt{update()} method of the \texttt{ARTKMans} class, having been supplied with an RDD of vectors from the DStream, begins by performing two consecutive \texttt{reduce()} actions on the entire RDD, to discover the latest values of the \textit{min} and \textit{max} vectors. Then, since the previous limitations of the observed dimensions may have expanded, the centroid combination method is called on the presently available centroids. If there are no existing centroids (i.e. this is the first RDD from the DStream and custom centroids were not initialized manually), the method assigns the first vector in the RDD to be the starting centroid of the algorithm.
+With all of this into consideration, the \texttt{update()} method of the \texttt{ARTKMans} class, having been supplied with an RDD of vectors from the DStream, begins by performing two consecutive \texttt{reduce()} actions on the entire RDD, to discover the latest values of the \textit{min} and \textit{max} vectors. Then, since the previous limitations of the observed dimensions may have expanded, the centroid combination method is called on the presently available centroids. If there are no existing centroids (i.e., this is the first RDD from the DStream and custom centroids were not initialized manually), the method assigns the first vector in the RDD to be the starting centroid of the algorithm.
 
 Once the state of the centroids and the \textit{min} and \textit{max} vectors has been determined, the \texttt{update()} method transforms the vectors inside the RDD into \texttt{VectorWithNorm} objects to enable the use of the triangle inequality optimization\cite{Triangle}. Finally, it updates the state of the model in response to the latest observations by invoking \texttt{runAlgorithm()}.
 
@@ -957,11 +956,11 @@ Another point of interest is that an array of zeros, with a length equal to the 
 
 For each data point $X$, found in an individual partition, the algorithm identifies its closest neuron $W'$, increments the corresponding neuron's counter in the weights array and updates the position of the neuron as follows:
 
-$$W' = W' + \eta*(X-W')$$
+$$W' = W' + \eta\times(X-W')$$
 
 \noindent Then, using the supplied value for the size of the neighborhood, the algorithm fetches the indices of all neurons $W$ within the neighborhood of the winner $W'$. Their coordinates are now updated as well with the formula:
 
-$$W = W + h(W^{\prime},W)*\eta*(X-W)$$
+$$W = W + h(W^{\prime},W)\times\eta\times(X-W)$$
 
 \noindent where $h(W^{\prime},W)$ is the impact of the neighborhood expressed as $h(W',W) = \exp(-\sigma*distance(W', W)^2)$. The value returned by $h(W^{\prime},W)$, for a neuron $W$ in the neighborhood of the winner, is also added on to the value stored in the weights array at the index of the respective neuron.
 
@@ -997,13 +996,13 @@ $$arg_{s} min \sum_{i=1}^{k}\sum_{x \in S} \|x - \mu_{i} \|^{2}$$
 
 The problem with WCSS, however, is that it cannot be easily used to tune the parameters of a clustering algorithm to obtain a better model. Because of its nature, by increasing the value of \texttt{K}, the loss of the model will also continue to decrease. In fact, if \texttt{K} was made equal to the number of observed data points, WCSS would report a loss of zero. In that scenario the model would exhibit too much entropy and would be useless from a practical sense. The standard practice for using WCSS to choose the number of centroids is to start at \texttt{K = 1} and incrementally increase the value of \texttt{K} until the change in the loss stops being significant for each new values of \texttt{K} -- this approach, however, is only a heuristic.
 
-While WCSS on its own is not sufficient to discover the best possible result for a clustering operation, it can be easily used to compare the results of two different algorithms that received the same set of input parameters. Even though both output models could be regarded as doing a poor clustering of the observed data (e.g. the data consists of five logical clusters, but \texttt{K} was set to three), the WCSS value is still capable of determining which one is better.
+While WCSS on its own is not sufficient to discover the best possible result for a clustering operation, it can be easily used to compare the results of two different algorithms that received the same set of input parameters. Even though both output models could be regarded as doing a poor clustering of the observed data (e.g., the data consists of five logical clusters, but \texttt{K} was set to three), the WCSS value is still capable of determining which one is better.
 
 \subsection{Silhouette}
 
 Silhouette\cite{Silhouette} is a method of interpretation and validation of consistency within clusters of data. It offers a clear and simple way of representing how well each data point lies within its cluster. The silhouette value of a particular observation in the input set is a measure of how similar that object is to its own cluster in comparison to other clusters.
 
-The silhouette score of a data point can range from -1 to 1. A value close to 1 indicates a near perfect cluster assignment (i.e. the observation is well matched to its own cluster and poorly matched to the neighboring cluster). A value near 0 means that the algorithm is fairly indifferent as to whether the point is assigned to its current centroid or its closest neighbor -- a point situated directly between two existing clusters is likely to have a silhouette score around 0. And finally, a silhouette value close to -1 suggests that the cluster assignment is incorrect. The available cluster model is then considered to be well adjusted to the input data distribution if most points have a high silhouette score. If this is not the case, the model likely has too many or too few centroids.
+The silhouette score of a data point can range from -1 to 1. A value close to 1 indicates a near perfect cluster assignment (i.e., the observation is well matched to its own cluster and poorly matched to the neighboring cluster). A value near 0 means that the algorithm is fairly indifferent as to whether the point is assigned to its current centroid or its closest neighbor -- a point situated directly between two existing clusters is likely to have a silhouette score around 0. And finally, a silhouette value close to -1 suggests that the cluster assignment is incorrect. The available cluster model is then considered to be well adjusted to the input data distribution if most points have a high silhouette score. If this is not the case, the model likely has too many or too few centroids.
 
 In order to compute the silhouette value of an observation, it is first necessary to define the average dissimilarity of a data item with a given cluster. \textit{C(i)}, or the average dissimilarity of item \textit{i} with cluster \textit{C}, is the average of the distance from \texttt{i} to all points in \textit{C}. If \textit{A(i)} is the average dissimilarity of point \textit{i} with the cluster it belongs to, and \textit{B(i)} is the lowest average dissimilarity of \textit{i} with any other cluster (often called the neighboring cluster of \textit{i} -- its next best fit), the equation for \textit{i}'s silhouette score is:
 
@@ -1017,7 +1016,7 @@ Even though this method provides much more information about the state of the cl
 
 \section{Used Training Data}
 
-Two primary forms of data were used to measure the performance of each algorithm and to guarantee their correct execution. The first kind is synthetic cluster data, generated by a custom Python script. It functions by taking a list of N-dimensional vectors as input, which are used as the mean values of an equal number of Gaussian functions that generate N-dimensional points clustered around the provided vectors (the variance of the Gaussian can be tuned as well). All of the points created by the script are then written to a file, with a uniform distribution between the points belonging to different clusters (i.e. the first 100 entries of a file, holding data for 5 distinct cluster, is likely to contain around 20 points belonging to each different cluster).
+Two primary forms of data were used to measure the performance of each algorithm and to guarantee their correct execution. The first kind is synthetic cluster data, generated by a custom Python script. It functions by taking a list of N-dimensional vectors as input, which are used as the mean values of an equal number of Gaussian functions that generate N-dimensional points clustered around the provided vectors (the variance of the Gaussian can be tuned as well). All of the points created by the script are then written to a file, with a uniform distribution between the points belonging to different clusters (i.e., the first 100 entries of a file, holding data for 5 distinct cluster, is likely to contain around 20 points belonging to each different cluster).
 
 This method is useful for providing a number of well behaved and distinct clusters, which can be used to sanity check the results of the implemented algorithms, when operating on larger datasets. Given \texttt{N} cluster origin vectors as input to the data generating script, a successful run of a clustering algorithm, with a specified value of \texttt{K} equal to \texttt{N}, should be able to produce centroid coordinates which are approximately identical to the origin vectors. This kind of data is a poor choice for comparing two clustering algorithms, however, as it is expected that both would be able to produce the ideal solution easily.
 
@@ -1040,6 +1039,8 @@ The second king of data used for evaluation was obtained from the UCI Machine Le
 \section{Performance}
 
 \subsection{Online K-Means using Grand Mean}
+
+
 
 \subsection{Online K-Means using Spark Streaming}
 
