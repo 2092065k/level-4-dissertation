@@ -460,7 +460,7 @@ A possible alternative is to set the learning rate to a constant in the range $(
 \begin{figure}[H]
 	\centering
     \label{onlineGraph}
-    \includegraphics[width=0.65\textwidth]{images/Graph1}
+    \includegraphics[width=0.65\textwidth]{images/Graph1HD}
     \caption{The empty circles are the centers and the black circle is an observed point. Online K-Means moves the closest center towards the direction of ($x-c_i$) by a factor of $\eta$.} 
 \end{figure}
 
@@ -493,7 +493,7 @@ Thus ART K-Means begins by assigning a single centroid to have the same initial 
 \begin{figure}[H]
 	\centering
     \label{artGraph}
-    \includegraphics[width=0.65\textwidth]{images/Graph2}
+    \includegraphics[width=0.65\textwidth]{images/Graph2HD}
     \caption{The distance from $x^a$ to the closest center is less than the vigilance $\rho$ -- the center is updated in the same way as Online K-Means. $X^b$ is not close enough to any of the centers and so a new centroid should be created at its position.} 
 \end{figure}
 
@@ -556,7 +556,7 @@ This is identical to the update step used in Lloyd's Online K-Means algorithms, 
 \begin{figure}[H]
 	\centering
     \label{somGraph}
-    \includegraphics[width=0.65\textwidth]{images/Graph3}
+    \includegraphics[width=0.65\textwidth]{images/Graph3HD}
     \caption{In the SOM, the closest center and its neighbors (in terms of indices) are all moved towards the observed point. Here the neighborhood is of size 1 and the 1-nearest neighbors are updated. Even if the neighbors are not close to each other, as they continue to influence each others locations, they will also become neighbors in the input space.} 
 \end{figure}
 
@@ -569,7 +569,7 @@ While this illustrates the operational model of SOM, most applications that util
 \begin{figure}[H]
 	\centering
     \label{somLattice}
-    \includegraphics[width=0.5\textwidth]{images/lattice}
+    \includegraphics[width=0.5\textwidth]{images/latticeHD}
     \caption{A 5x5 SOM lattice of neurons with a neighborhood of size one. Here the central neuron is closest to the observation. This updates its value along with all of its neighbors.} 
 \end{figure}
 
@@ -728,7 +728,7 @@ The \texttt{groupByKey()} operation is used to used to alter the underlying stru
 \begin{figure}[H]
 	\centering
     \label{partitions2}
-    \includegraphics[width=0.65\textwidth]{images/partitions2}
+    \includegraphics[width=0.65\textwidth]{images/partitions2HD}
     \caption{An example partitioning of input data points based on their proximity to existing centroids -- the white circles are centroids, the black ones are new observations.} 
 \end{figure}
 
@@ -827,7 +827,7 @@ While this method of operation has proven suitable for the purposes of creating 
 \begin{figure}[H]
 	\centering
     \label{minMaxgraph}
-    \includegraphics[width=0.65\textwidth]{images/Graph5}
+    \includegraphics[width=0.65\textwidth]{images/Graph4HD}
     \caption{An example of the expanding limitations of two observed dimensions. The data received from the first RDD is confined to the box labeled RDD1, the data received in the second RDD is inside the RDD2 box and so on -- the maximum and minimum value of each dimension can become bigger and smaller respectively for each new RDD.} 
 \end{figure}
 
@@ -892,7 +892,7 @@ Finally, there is one more complication to be considered. By splitting up the ob
 \begin{figure}[H]
 	\centering
     \label{grapgh-boundary}
-    \includegraphics[width=0.65\textwidth]{images/Graph4}
+    \includegraphics[width=0.65\textwidth]{images/Graph5HD}
     \caption{An example partitioning of data points based on their proximity to existing centroids. In this case the two data points, outside of the hyperspheres of the centroids, will cause two new centroids to be created next to each other, because the data in each partition is considered in isolation.} 
 \end{figure}
 
