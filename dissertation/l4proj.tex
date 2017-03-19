@@ -1038,15 +1038,113 @@ The second king of data used for evaluation was obtained from the UCI Machine Le
 
 \section{Performance}
 
+All of the implemented algorithms have associated unit tests, which validate their correct execution when dealing with small, custom made input data sets. In order to examine the algorithms' performance when operating on larger, more substantial collections of data, the computing cluster, owned by the University of Glasgow School of Computing Science, was used. All of the presented experiments were carried out multiple time, thus the included runtime measurements are averaged over all attempts.
+
 \subsection{Online K-Means using Grand Mean}
 
+The non-streaming implementation of Online K-means was first tested using the synthetically generated data. The algorithm was able to correctly identify the used  cluster origin vectors in multiple scenarios with varying quantities of input points and observed dimensions. There were a few instances, however, where a poor choice for the \texttt{seed} parameter of the initial centroid selection function resulted in a unsatisfactory clustering. Although this is not due to a fault with the implementation, but rather an inherent weakness of the underlying algorithm.
 
+To examine the algorithm's execution when clustering synthetic data in more detail,  one particular input set will be closely considered. The generated file consists of  100 thousand 3-dimensional data points clustered around the coordinates $(0,0,0)$, $(10,10,10)$ and $(20,20,20)$. When running the algorithm with the value of \texttt{K} set to $3$, the coordinates of the final cluster centroids are as follows: $(0.050,0.063,0.055)$, $(10.010,10.005,10.014)$ and $(20.002,20.0001,20.011)$. The respective WCSS value is also equal to 678737.057. These results are not surprising as identifying the centers of highly dissimilar clusters should not be problematic.
+
+The implementation of standard K-Means that is present in MLlib was also run on the synthetic data. The algorithm was launched with 10 possible max iterations, K-Means++ as a way of initializing the centroids and \texttt{K} set to 3. The produced centroids had the following coordinates $(-0.013, -0.003, -0.009)$, $(9.998, 9.991, 10.001)$ and $(20.001, 19.999, 20.009)$. The value of WCSS in this case was 677308.787. This result is slightly better, however, it is also worth mentioning that the average runtime of the Online algorithm was 3.7 seconds and the  iterative one, with its present setting, had an average runtime of 17.9 seconds.
+
+To further inspect the differences between the two algorithms and the effects of different values of \texttt{K}, both algorithms were run 50 times, with an increasing value of \texttt{K} on each run. The resulting WCSS values were then plotted against each other.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res1}
+    \includegraphics[width=0.9\textwidth]{images/result1}
+    \caption{WCSS for increasing values of K -- clustering synthetic data} 
+\end{figure}
+
+As expected, because the data set consists of 3 well defined clusters, the produced models with a number of clusters higher that 3 fail to significantly reduce the loss of the algorithm. Furthermore, because identifying a nearly ideal solution in the present dataset is so easy, the difference in the quality of each algorithm's model is almost unnoticeable.
+
+The next experiment involves using input vectors from the \textit{Heterogeneity Activity Recognition Data Set}. Here the data once more consists of 100000 3-dimensional points, however, unlike the synthetic example, there are no highly dissimilar clusters. 
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res2}
+    \includegraphics[width=0.9\textwidth]{images/result2}
+    \caption{WCSS for increasing values of K -- clustering a subset of the HAR data set. Iterative K-Means set to use 10 max iterations and K-Means++ for centroid initialization. } 
+\end{figure}
+
+These results seem to indicate that standard K-Means produces noticeably better results than Online K-Means. It is worth considering, however, that the implementation of standard K-Means is performing multiple iteration over the entire data (at most 10 in this example) and is also using K-Means++ to determine the starting coordinates of its centroids. Because of these model optimizations, performing all 50 clustering operations takes 5m 4.7s on average, where as Online K-Means takes only 59.7s. While the model is not of equally high quality, it was computed in less than one fifth of the time.
+
+To try and decrease the gap in execution time between the two algorithms, standard K-Means was ran on the same data set with 3 additional configurations:
+
+\begin{enumerate}
+\item 10 max iterations and random centroid initialization
+\item 1 iteration over the data and K-Means++ for centroid initialization
+\item 1 iteration over the data and random centroid initialization
+\end{enumerate}
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res3}
+    \includegraphics[width=0.82\textwidth]{images/result3}
+    \caption{WCSS for increasing values of K -- clustering a subset of the HAR data set. Iterative K-Means set to use 10 max iterations and random centroid initialization. } 
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res4}
+    \includegraphics[width=0.82\textwidth]{images/result4}
+    \caption{WCSS for increasing values of K -- clustering a subset of the HAR data set. Iterative K-Means set to use 1 iteration and K-Means++ for centroid initialization. } 
+\end{figure}
+
+For the first two configurations, standard K-Means still manages to consistently produce a better model than Online K-Means -- although the WCSS curve for standard K-Means is noticeable less smooth. The average runtime of two variance has come down to  3m 44.2s for the first one and 2m 47.7s for the second one\footnote{The sum of the average run times for the two configurations is greater than 5m 4.7s, as without using K-Means++ for initialization, more of the 10 possible iterations need to be performed before the model converges.} -- these values are still orders of magnitude higher than 59.7s.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res5}
+    \includegraphics[width=1.0\textwidth]{images/result5}
+    \caption{WCSS for increasing values of K -- clustering a subset of the HAR data set. Iterative K-Means set to use 1 iteration and random centroid initialization. } 
+\end{figure}
+
+Finally, when standard K-Means has been set to use only one iteration over the data  and to randomly initialize the starting coordinates of its centroids, does its execution time come close to that of Online K-Means -- 1m 8.4s. With all of its centroid optimization techniques disabled, however, the quality of the produced model by standard K-Means becomes highly erratic and of lower quality than that of Online K-Means.
+
+The trend of Online K-Means providing a better quality model than standard K-Means, when operating with a nearly equivalent execution time, continues when looking at experiments that involve even larger quantities of data. In order to perform 50 clustering operations on the observations in the \textit{Individual household electric power consumption Data Set} (2 million 5-dimensional points) with incremental values of \texttt{K}, Online K-Means takes 13m 53s on average. Standard K-Means takes 1h 4m 12s when launched with 10 max iterations and K-Means++ for initialization,  and 14m 8s when using only 1 iteration and random centroid initialization.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res6}
+    \includegraphics[width=0.82\textwidth]{images/result6}
+    \caption{WCSS for increasing values of K -- clustering the entire IHEPC data set. Iterative K-Means set to use 10 max iterations and K-Means++ for centroid initialization. } 
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res7}
+    \includegraphics[width=0.82\textwidth]{images/result7}
+    \caption{WCSS for increasing values of K -- clustering the entire IHEPC data set. Iterative K-Means set to use 1 iteration and random centroid initialization. } 
+\end{figure}
+
+Similar results are once again achieved when using the larges file from the \textit{Heterogeneity Activity Recognition Data Set} -- 14 million 3-dimensional data points. Online K-Means performs all 50 clustering operations in 45m 8s, standard K-Means takes 3h 31m 44s with 10 max iterations and K-Means++ for centroid initialization and 45m 3s with 1 iteration and random centroid initialization.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res8}
+    \includegraphics[width=0.74\textwidth]{images/result8}
+    \caption{WCSS for increasing values of K -- clustering the larges file in the HAR data set. Iterative K-Means set to use 10 max iterations and K-Means++ for centroid initialization. } 
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res9}
+    \includegraphics[width=0.74\textwidth]{images/result9}
+    \caption{WCSS for increasing values of K -- clustering the larges file in the HAR data set. Iterative K-Means set to use 1 iteration and random centroid initialization. } 
+\end{figure}
+
+All of these measurements indicate that, while Iterative K-Means is able to generate better models by taking longer to process the data, Online K-Means is a preferred alternative when dealing with time-critical systems. Therefore, the created implementation offers a clear quality for performance trade-off which could be relevant for the purposes of the user.
 
 \subsection{Online K-Means using Spark Streaming}
 
 \subsection{ART K-Means}
 
 \subsection{SOM K-Means}
+
+% TODO silhouette histograms -- MUST DO
+% TODO reference figures
 
 %==============================================================================
 
