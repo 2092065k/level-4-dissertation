@@ -1192,6 +1192,43 @@ if the presented data contains an extreme outlier (e.g., a single point located 
 
 \subsection{SOM K-Means}
 
+The SOM K-Means algorithm is fundamentally different to the rest of the implemented algorithms, as it not trying to identify the centers of existing data clusters but rather to form a topological map of the observed N-dimensional space. For this reason, methods like the Within-Cluster Sum of Squares formula and Silhouette are not adequate measurements of the quality of a produced model. Although, because the
+purpose of this project is to provide scalable versions of proven machine learning algorithms, one way to evaluate SOM K-Means is to compare its output with that of a simple sequential version of the algorithm that does not use any of Spark's features. Using a third party library would not have been suitable, however, as the provided implementation would not be an exact sequential version of the algorithm implemented under Spark. Therefore, a sequential SOM K-Means was also created for comparison purposes.
+
+SOM K-Means and its sequential variant were both tested with a variety of synthetic and real data input sets. Upon inspecting the values of neurons in the produced maps, there seemed to be a great deal of variance between the two algorithms -- neurons at identical indices in the two maps (trained on identical datasets) usually held completely different values. After a more detailed look at the overall structure of the maps, however, it became apparent that their neurons were largely grouped around the same regions, with a high density of observations, even if there wasn't a direct one-to-one correspondence between each neuron pair. 
+
+The following is a visualization of the final coordinates of each neuron found in the 5x5 maps (with a neighborhood of size 1) obtained by running both the streaming and sequential versions of SOM K-Means on identical sets of synthetic and real data:
+
+\begin{figure}[H]
+\label{som-synth}
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=1\linewidth]{images/result14}
+  \label{fig:res14}
+  \caption{Sequential SOM K-Means}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=1\linewidth]{images/result15}
+  \label{fig:res15}
+  \caption{Streaming SOM K-Means}
+\end{subfigure}
+\caption{The final coordinates of each neuron of a 5x5 map, trained using synthetic data}
+\end{figure}
+
+\begin{figure}[H]
+\label{som-real}
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=1\linewidth]{images/result16}
+  \label{fig:res16}
+  \caption{Sequential SOM K-Means}
+\end{subfigure}%
+\begin{subfigure}{.5\textwidth}
+  \includegraphics[width=1\linewidth]{images/result17}
+  \label{fig:res17}
+  \caption{Streaming SOM K-Means}
+\end{subfigure}
+\caption{The final coordinates of each neuron of a 5x5 map, trained using data from the HAR repository}
+\end{figure}
+
 % TODO silhouette histograms -- MUST DO
 % TODO -- REFERENCE FIGURES!!
 
