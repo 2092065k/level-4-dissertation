@@ -1165,7 +1165,30 @@ When the two streaming solutions were tested using observations from the  \texti
 
 \subsection{ART K-Means}
 
+The implementation of ART K-Means was tested on synthetic and real data from the UCI Machine Learning Repository by also making use of the previously described stream simulating program. In this case, however, because of ART's unique input parameters and method of operation, there is no existing algorithm in MLlib that can be used for comparison purposes. Furthermore, since \texttt{K} is no longer a user supplied parameter, the loss of the model (WCSS) will be recorded for incremental values of the percentage of maximum \textit{vigilance}.
 
+One experiment involved using the synthetic data set from before -- 100000 3-dimensional points, clustered around (0,0,0), (10,10,10) and (20,20,20), with each chunk from the simulated stream containing 10000 observations. Here, a high value for the percentage of the maximum vigilance value resulted in only one centroid being created at coordinates near (10,10,10). As this value was reduced, the model transitioned to having two centroids at roughly (5,5,5) and (15,15,15), until eventually the radius of the hyperspheres around the centroids became small enough to require three of them -- one at the center of each cluster. This stepwise shift in the number of centroids can be clearly seen when looking at a plot of the resulting models' loss.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res12}
+    \includegraphics[width=0.9\textwidth]{images/result12}
+    \caption{WCSS for increasing values of the percentage of maximum vigilance -- clustering synthetic data} 
+\end{figure}
+
+It is worth pointing out that, in order to obtain a model with more than one centroid, a percentage smaller than 25 needs to be supplied. This is in fact normal behavior, caused by two different factors. Firstly, the three clusters are generated using a Gaussian function which occasionally creates points that are situated a fair distance away from their origin vector. Because of this, the values of the \textit{min} and \textit{max} vectors used by the algorithms are more extreme than [0,0,0] and [20,20,20] and so the resulting maximum possible vigilance becomes far greater. Secondly, when the collection of observations contains no outliers (e.g., points, whose normalized forms are situated near the corners of the unit hypercube) seemingly small vigilance values are enough to encompass all of the data(e.g., a hypersphere with a radius of 50\% max vigilance situates at the center of the unit hypercube).
+
+When running ART K-Means on data from the \textit{Heterogeneity Activity Recognition} repository, a similar observation about the changing umber of centroids can be made. In this case, the clustering model contains more than one centroid when the percentage of max vigilance is less than 23\%. Then, the number of cluster centers rapidly grows to 11 at 5\% and 21 at 1\%.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res13}
+    \includegraphics[width=0.9\textwidth]{images/result13}
+    \caption{WCSS for increasing values of the percentage of maximum vigilance -- clustering observations from the HAR data set} 
+\end{figure}
+
+One particular weakness of ART K-Means, that was identified during testing, is that
+if the presented data contains an extreme outlier (e.g., a single point located a great distance from the majority of observations), a \textit{vigilance} percentage far smaller than 1\% would be required to obtain more than two clusters -- one for the outlier and one for the rest of the data. 
 
 \subsection{SOM K-Means}
 
