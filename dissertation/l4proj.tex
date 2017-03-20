@@ -1048,6 +1048,15 @@ To examine the algorithm's execution when clustering synthetic data in more deta
 
 The implementation of standard K-Means that is present in MLlib was also run on the synthetic data. The algorithm was launched with 10 possible max iterations, K-Means++ as a way of initializing the centroids and \texttt{K} set to 3. The produced centroids had the following coordinates $(-0.013, -0.003, -0.009)$, $(9.998, 9.991, 10.001)$ and $(20.001, 19.999, 20.009)$. The value of WCSS in this case was 677308.787. This result is slightly better, however, it is also worth mentioning that the average runtime of the Online algorithm was 3.7 seconds and the  iterative one, with its present setting, had an average runtime of 17.9 seconds.
 
+The two sets of results were also compared using Silhouette. Due to their similarity, the average score of each cluster in both models is around 0.805. By assigning such a high value to each cluster, Silhouette is also confirming that these center coordinates are nearly ideal.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res18}
+    \includegraphics[width=0.7\textwidth]{images/result18}
+    \caption{Silhouette values for the three cluster of synthetic data} 
+\end{figure}
+
 To further inspect the differences between the two algorithms and the effects of different values of \texttt{K}, both algorithms were run 50 times, with an increasing value of \texttt{K} on each run. The resulting WCSS values were then plotted against each other.
 
 \begin{figure}[H]
@@ -1069,6 +1078,15 @@ The next experiment involves using input vectors from the \textit{Heterogeneity 
 \end{figure}
 
 These results seem to indicate that standard K-Means produces noticeably better results than Online K-Means. It is worth considering, however, that the implementation of standard K-Means is performing multiple iteration over the entire data (at most 10 in this example) and is also using K-Means++ to determine the starting coordinates of its centroids. Because of these model optimizations, performing all 50 clustering operations takes 5m 4.7s on average, where as Online K-Means takes only 59.7s. While the model is not of equally high quality, it was computed in less than one fifth of the time.
+
+The obtained WCSS values for each execution of the two algorithms also indicate that a substantial decrease in the loss of the model does not occur after \texttt{K} is set to a value larger than 8. Because of this, the Silhouette scores of both models at \texttt{K} = 8 were measured. Here the average results are a lot worse than the ones obtained for clustering the synthetic data -- around 0.4 per cluster. This indicates that the models are reasonable but not perfect.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res19}
+    \includegraphics[width=0.9\textwidth]{images/result19}
+    \caption{Silhouette values for 8 clusters of observations from the HAR data set.} 
+\end{figure}
 
 To try and decrease the gap in execution time between the two algorithms, standard K-Means was ran on the same data set with 3 additional configurations:
 
@@ -1163,6 +1181,15 @@ When the two streaming solutions were tested using observations from the  \texti
     \caption{WCSS for increasing values of K -- clustering observations from the \textit{Heterogeneity Activity Recognition Data Set} with identical starting coordinates} 
 \end{figure}
 
+The Silhouette values of the models produced by clustering the \textit{Heterogeneity Activity Recognition Data Set} with \texttt{K} set to 10 were also recorded. The average scores for each cluster is also very similar between the two algorithms.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res20}
+    \includegraphics[width=0.9\textwidth]{images/result20}
+    \caption{Silhouette values for 10 clusters of observations from the HAR data set.} 
+\end{figure}
+
 \subsection{ART K-Means}
 
 The implementation of ART K-Means was tested on synthetic and real data from the UCI Machine Learning Repository by also making use of the previously described stream simulating program. In this case, however, because of ART's unique input parameters and method of operation, there is no existing algorithm in MLlib that can be used for comparison purposes. Furthermore, since \texttt{K} is no longer a user supplied parameter, the loss of the model (WCSS) will be recorded for incremental values of the percentage of maximum \textit{vigilance}.
@@ -1229,9 +1256,6 @@ The following is a visualization of the final coordinates of each neuron found i
 \caption{The final coordinates of each neuron of a 5x5 map, trained using data from the HAR repository}
 \end{figure}
 
-% TODO silhouette histograms -- MUST DO
-% TODO -- REFERENCE FIGURES!!
-
 %==============================================================================
 
 \chapter{Conclusion}
@@ -1240,6 +1264,7 @@ The following is a visualization of the final coordinates of each neuron found i
 % TODO: summery
 % TODO: future work
 % TODO: reflection
+% TODO -- REFERENCE FIGURES!!
 
 %==============================================================================
 
