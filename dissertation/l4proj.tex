@@ -1139,12 +1139,38 @@ All of these measurements indicate that, while Iterative K-Means is able to gene
 
 \subsection{Online K-Means using Spark Streaming}
 
+Testing the implementation of algorithms that rely on Spark Streaming proved more challenging, as it was first necessary to develop a small application that could simulate an input data stream. Unlike the first version of Online K-Means, where only a single file of N-dimensional vector data (stored on HDFS) was needed, for the purposes of streaming, the collection of data points first needed to be broken up into smaller chunks and later sent to the clustering algorithm, one chunk at a time. It is also required to set a time interval between each transfer.
+
+This is done to enable the used \textit{discretized} stream to periodically feed the algorithm new observations in a similar meaner to a real use case, where a model needs to adapt to a live changing environment. Because of this method of operation, however, it is not possible to benchmark the processing speed of the algorithm, as its execution time is bottlenecked by the \textit{batch interval} specified by the Streaming Context.
+ 
+The execution of Online K-Means with Spark Streaming was tested with both the synthetic and real data. In the first example, a collection of 100000 points clustered around the coordinates of (0,0,0), (10,10,10) and (20,20,20) was used, with each chunk of data sent to the algorithm containing 10000 points. The loss of the model (WCSS) was then recorded for incremental values of \texttt{K} and juxtaposed with the results returned by MLlib's Mini-batch K-Means (supplied with the same data).
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res10}
+    \includegraphics[width=0.9\textwidth]{images/result10}
+    \caption{WCSS for increasing values of K -- clustering synthetic data} 
+\end{figure}
+
+From the results, it is apparent that Online K-Means succeeded in finding the three appropriate centroid coordinates, when \texttt{K} was set to 3 -- afterwards the decrease in the model's loss is negligible. Mini-batch K-Means, on the other hand, did not manage to identify the cluster centers until \texttt{K} equaled 4. This is a result of poorly chosen starting coordinates -- Mini-batch K-Means does not provide an option to sample the data for centroid initialization and so a random values were used. By performing additional tests on synthetic data, it was discovered that both Mini-batch and Online K-Means have a tendency of producing low quality models, due to poor centroid initialization -- again a weakness of the underlying algorithms.
+
+When the two streaming solutions were tested using observations from the  \textit{Heterogeneity Activity Recognition Data Set} (1 million points broken into chunks of 10000) with identical, manually selected, starting coordinates, they produced very similar results. This trend continued when testing with different input sets, indicating that, if the two algorithms have identical starting conditions, the quality of their produced models is nearly identical.
+
+\begin{figure}[H]
+	\centering
+    \label{fig:res11}
+    \includegraphics[width=0.9\textwidth]{images/result11}
+    \caption{WCSS for increasing values of K -- clustering observations from the \textit{Heterogeneity Activity Recognition Data Set} with identical starting coordinates} 
+\end{figure}
+
 \subsection{ART K-Means}
+
+
 
 \subsection{SOM K-Means}
 
 % TODO silhouette histograms -- MUST DO
-% TODO reference figures
+% TODO -- REFERENCE FIGURES!!
 
 %==============================================================================
 
