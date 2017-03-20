@@ -1261,9 +1261,24 @@ The following is a visualization of the final coordinates of each neuron found i
 \chapter{Conclusion}
 \label{conclusion}
 
-% TODO: summery
-% TODO: future work
-% TODO: reflection
+\section{Summary}
+
+The aim of this project was to create an extension to the MLlib component of Apache Spark, by developing a variety of K-Means clustering algorithms that the framework does not currently support. The four implemented algorithms provide users with a plethora of options for clustering a set of observations that are not available in MLlib. Some have proven to be a superior choice when dealing with time-critical applications, while others are able to overcome the inherent weaknesses of standard K-Means thanks to their reliance on Spark Streaming and alternative models of operation. These qualities were exemplified while evaluating the algorithms with both synthetically generated data and samples from popular machine learning repositories.
+
+\section{Future Work}
+
+While the implemented algorithms present a solid foundation, there is a variety of possible extensions that could be made to enable users to further tailor the execution of clustering operations to better fit their use case. Some examples include:
+
+\begin{itemize}
+\item alternative methods for centroid initialization when using Spark Streaming -- e.g., running K-Means++ on a collection of the first few RDDs from the DStream
+\item setting a lower bound on the possible centroid learning rate to increase the model's responsiveness to streamed data over a longer term
+\item transition the implemented algorithms to use Spark's DataFrame API, which supports SQL queries
+\end{itemize}
+
+\section{Reflection}
+
+Throughout the course of the project the author has gained substantial experience in understanding, implementing and evaluating machine learning algorithms. Achieving all this while also learning to use modern dig data processing and streaming technologies was a unique challenge that greatly enhances one's abilities to work in those fields. Additionally, the author has become more familiar with  contributing to an open source platform as well as writing functional code using the Scala programming language.
+
 % TODO -- REFERENCE FIGURES!!
 
 %==============================================================================
