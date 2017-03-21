@@ -87,7 +87,7 @@ These machine learning algorithms are typically classified into three different 
 
 Many of these machine learning algorithms have a similar underlying approach to their implementation. Input training data with some unknown probability distribution is presented and the program has to construct a model that allows it to extract meaning from the data and make sufficiently accurate predictions for instances that have not been encountered yet. This is generally achieved by defining a loss function and adjusting the model in attempts to minimize this loss with respect to the inputs -- effectively an optimization problem.
 
-It is clear that machine learning algorithms heavily depend on the availability of input data in order to optimize their models to more accurately reflect the state of the real world. Therefore the quantity of supplied input data begins to have a significant impact on the quality of the output produced by application relying on machine learning. With the advent of big data and technologies meant to enable fast and reliable processing of big data, these algorithms can now make use of vast amounts of information, enabling them to create more accurate and valuable results. Examples of big data processing frameworks include Hadoop and Apache Spark.
+It is clear that machine learning algorithms heavily depend on the availability of input data in order to optimize their models to more accurately reflect the state of the real world. Therefore the quantity of supplied input data begins to have a significant impact on the quality of the output produced by applications relying on machine learning. With the advent of big data and technologies meant to enable fast and reliable processing of big data, these algorithms can now make use of vast amounts of information, enabling them to create more accurate and valuable results. Examples of big data processing frameworks include Hadoop and Apache Spark.
 
 The Apache Spark project in particular includes a component called MLlib. MLlib is a machine learning library built on top of the core features of Spark. It provides implementations for a variety of popular machine learning algorithms, all of which are written in a way meant to support horizontal scalability\footnote{Horizontal scaling refers to the scaling of a system by adding more parallel, similar in performance nodes. It is directly contrasted by vertical scaling where additional resources are added to the one node of a system.} when operating on big data sets.
 
@@ -107,8 +107,8 @@ The remainder of this report will focus on the mathematics underlying each of th
 \item \textbf{Chapter~\ref{propose}} outlines the proposed algorithms to be implemented as part of Apache Sparks, along with their benefits and challenges
 \item \textbf{Chapter~\ref{online}} details two different approaches to the implementation of Lloyd's Online K-Means Clustering algorithm
 \item \textbf{Chapter~\ref{art}} presents a version of K-Means using Adaptive Resonance Theory and its implementation
-\item \textbf{Chapter~\ref{som}} presents the implementation of a  a K-Means Clustering algorithm using Self-Organizing Maps
-\item \textbf{Chapter~\ref{eval}} covers a variety of ways to evaluate both the performance of the presented algorithms and the quality of the data models they produce
+\item \textbf{Chapter~\ref{som}} presents the implementation of a K-Means Clustering algorithm using Self-Organizing Maps
+\item \textbf{Chapter~\ref{eval}} covers the evaluation of both the performance of the presented algorithms and the quality of the data models they produce
 \item \textbf{Chapter~\ref{conclusion}} concludes this report with a reflection on the whole project
 \end{itemize}
 
@@ -750,7 +750,7 @@ $$W' = W' + \eta(X - W')$$
 
 \noindent where $W'$ is the ``winning'' centroid, $X$ is the latest observation and $\eta$ is the learning rate. If the distance form $W'$ to $X$ is greater than the vigilance, however, a new centroid will be instantiated with the same coordinates as $X$. In this way, the algorithm effectively partitions the available N-dimensional space into a series of hyperspheres, with a radius equal to the \textit{vigilance} value.
 
-While this technique in adequate when dealing with a low-dimensional setting, such as the 3D physical space, it becomes unintuitive for a user to supply a value specifying euclidean distance between points with hundreds or thousands of dimensions -- the Curse of Dimensionality\cite{CurseOfDimensionality}. To overcome this, it is necessary to provide the user with a different means of expressing the radius of the hypersphere surrounding each centroid.
+While this technique is adequate when dealing with a low-dimensional setting, such as the 3D physical space, it becomes unintuitive for a user to supply a value specifying euclidean distance between points with hundreds or thousands of dimensions -- the Curse of Dimensionality\cite{CurseOfDimensionality}. To overcome this, it is necessary to provide the user with a different means of expressing the radius of the hypersphere surrounding each centroid.
 
 The solution proposed by this paper involves normalizing the values of all centroids and observations, so that they fit within the confines of a unit hypercube -- i.e., transform the value of each dimension of a given point to fit between 0 an 1. This is achieved by defining two special vectors: \textit{max} and \textit{min}, where \textit{max} holds the maximum possible value for each dimension and \textit{min} tracks the minimum possible value of each dimensions. If normalized, the \textit{max} and \textit{min} vectors would become $[1, 1, 1, ..., 1, 1]$ and $[0, 0, 0, ..., 0, 0]$ respectively. Then, to normalize a vector $X$, for each dimension $i$ the following formula is applied:
 
@@ -925,7 +925,7 @@ When a sufficient number of RDDs, produced from the live data source, have been 
 \chapter{Algorithm Evaluation}
 \label{eval}
 
-When it comes to evaluating the quality of a result produced by an unsupervised machine learning algorithm, there is usually a variety of possible evaluation metrics and criteria that can be employed. One needs to be careful, however, as certain performance measures are not always directly applicable, given the nature of the exact algorithm that is used, or the underlying structure of the input training data. Certain evaluation algorithm also have a tendency of indicating that an algorithm's output model is of higher quality, when in fact it has been overfit to the training data in an undesirable manner\cite{Overfit}.
+When it comes to measuring the quality of a result produced by an unsupervised machine learning algorithm, there is usually a variety of possible evaluation metrics and criteria that can be employed. One needs to be careful, however, as certain performance measures are not always directly applicable, given the nature of the exact algorithm that is used, or the underlying structure of the input training data. Certain evaluation algorithm also have a tendency of indicating that an algorithm's output model is of higher quality, when in fact it has been overfit to the training data in an undesirable manner\cite{Overfit}.
 
 In order to evaluate the four implemented clustering algorithms, it is not only necessary to measure the quality of the produced model, in response to a supplied training set, but also to juxtapose that result with the output of the existing clustering algorithms in MLlib. Furthermore, for the purposes of this project, it is sometimes less important to evaluate the result of a performed clustering operation, but rather the difference between the new and old algorithms, given identical starting parameters. 
 
@@ -993,7 +993,7 @@ To examine the algorithm's execution when clustering synthetic data in more deta
 
 The implementation of standard K-Means that is present in MLlib was also run on the synthetic data. The algorithm was launched with 10 possible max iterations, K-Means++ as a way of initializing the centroids and \texttt{K} set to 3. The produced centroids had the following coordinates $(-0.013, -0.003, -0.009)$, $(9.998, 9.991, 10.001)$ and $(20.001, 19.999, 20.009)$. The value of WCSS in this case was 677308.787. This result is slightly better, however, it is also worth mentioning that the average runtime of the Online algorithm was 3.7 seconds and the  iterative one, with its present setting, had an average runtime of 17.9 seconds.
 
-The two sets of results were also compared using Silhouette. Due to their similarity, the average score of each cluster in both models is around 0.805. By assigning such a high value to each cluster, Silhouette is also confirming that these center coordinates are nearly ideal.
+The two sets of results were also compared using Silhouette. Due to their similarity, the average score of each cluster in both models is around 0.805 (fig. \ref{fig:res18}). By assigning such a high value to each cluster, Silhouette is also confirming that these center coordinates are nearly ideal.
 
 \begin{figure}[H]
 	\centering
@@ -1002,7 +1002,7 @@ The two sets of results were also compared using Silhouette. Due to their simila
     \label{fig:res18}
 \end{figure}
 
-To further inspect the differences between the two algorithms and the effects of different values of \texttt{K}, both algorithms were run 50 times, with an increasing value of \texttt{K} on each run. The resulting WCSS values were then plotted against each other.
+To further inspect the differences between the two algorithms and the effects of different values of \texttt{K}, both algorithms were ran 50 times, with an increasing value of \texttt{K} on each run. The resulting WCSS values were then plotted against each other (fig. \ref{fig:res1}).
 
 \begin{figure}[H]
 	\centering
@@ -1022,9 +1022,9 @@ The next experiment involves using input vectors from the \textit{Heterogeneity 
     \label{fig:res2}
 \end{figure}
 
-These results seem to indicate that standard K-Means produces noticeably better results than Online K-Means. It is worth considering, however, that the implementation of standard K-Means is performing multiple iteration over the entire data (at most 10 in this example) and is also using K-Means++ to determine the starting coordinates of its centroids. Because of these model optimizations, performing all 50 clustering operations takes 5m 4.7s on average, where as Online K-Means takes only 59.7s. While the model is not of equally high quality, it was computed in less than one fifth of the time.
+These results (fig. \ref{fig:res2}) seem to indicate that standard K-Means produces noticeably better results than Online K-Means. It is worth considering, however, that the implementation of standard K-Means is performing multiple iteration over the entire data (at most 10 in this example) and is also using K-Means++ to determine the starting coordinates of its centroids. Because of these model optimizations, performing all 50 clustering operations takes 5m 4.7s on average, where as Online K-Means takes only 59.7s. While the model is not of equally high quality, it was computed in less than one fifth of the time.
 
-The obtained WCSS values for each execution of the two algorithms also indicate that a substantial decrease in the loss of the model does not occur after \texttt{K} is set to a value larger than 8. Because of this, the Silhouette scores of both models at \texttt{K} = 8 were measured. Here the average results are a lot worse than the ones obtained for clustering the synthetic data -- around 0.4 per cluster. This indicates that the models are reasonable but not perfect.
+The obtained WCSS values for each execution of the two algorithms also indicate that a substantial decrease in the loss of the model does not occur after \texttt{K} is set to a value larger than 8. Because of this, the Silhouette scores of both models at \texttt{K} = 8 were measured (fig. \ref{fig:res19}). Here the average results are a lot worse than the ones obtained for clustering the synthetic data -- around 0.4 per cluster. This indicates that the models are reasonable but not perfect.
 
 \begin{figure}[H]
 	\centering
@@ -1050,7 +1050,7 @@ For the first two configurations, standard K-Means still manages to consistently
     \label{fig:res5}
 \end{figure}
 
-Finally, when standard K-Means has been set to use only one iteration over the data  and to randomly initialize the starting coordinates of its centroids, does its execution time come close to that of Online K-Means -- 1m 8.4s. With all of its centroid optimization techniques disabled, however, the quality of the produced model by standard K-Means becomes highly erratic and of lower quality than that of Online K-Means.
+Finally, when standard K-Means has been set to use only one iteration over the data  and to randomly initialize the starting coordinates of its centroids, does its execution time come close to that of Online K-Means -- 1m 8.4s. With all of its centroid optimization techniques disabled, however, the model produced by standard K-Means becomes highly erratic and of lower quality than that of Online K-Means (fig. \ref{fig:res5}).
 
 The trend of Online K-Means providing a better quality model than standard K-Means, when operating with a nearly equivalent execution time, continues when looking at experiments that involve even larger quantities of data (fig. \ref{fig:res6} and fig. \ref{fig:res7}). In order to perform 50 clustering operations on the observations in the \textit{Individual household electric power consumption Data Set} (2 million 5-dimensional points) with incremental values of \texttt{K}, Online K-Means takes 13m 53s on average. Standard K-Means takes 1h 4m 12s when launched with 10 max iterations and K-Means++ for initialization,  and 14m 8s when using only 1 iteration and random centroid initialization.
 
@@ -1073,9 +1073,9 @@ The execution of Online K-Means with Spark Streaming was tested with both the sy
     \label{fig:res10}
 \end{figure}
 
-From the results, it is apparent that Online K-Means succeeded in finding the three appropriate centroid coordinates, when \texttt{K} was set to 3 -- afterwards the decrease in the model's loss is negligible. Mini-batch K-Means, on the other hand, did not manage to identify the cluster centers until \texttt{K} equaled 4. This is a result of poorly chosen starting coordinates -- Mini-batch K-Means does not provide an option to sample the data for centroid initialization and so a random values were used. By performing additional tests on synthetic data, it was discovered that both Mini-batch and Online K-Means have a tendency of producing low quality models, due to poor centroid initialization -- again a weakness of the underlying algorithms.
+From the results (fig. \ref{fig:res10}), it is apparent that Online K-Means succeeded in finding the three appropriate centroid coordinates, when \texttt{K} was set to 3 -- afterwards the decrease in the model's loss is negligible. Mini-batch K-Means, on the other hand, did not manage to identify the cluster centers until \texttt{K} equaled 4. This is a result of poorly chosen starting coordinates -- Mini-batch K-Means does not provide an option to sample the data for centroid initialization and so a random values were used. By performing additional tests on synthetic data, it was discovered that both Mini-batch and Online K-Means have a tendency of producing low quality models, due to poor centroid initialization -- again a weakness of the underlying algorithms.
 
-When the two streaming solutions were tested using observations from the  \textit{Heterogeneity Activity Recognition Data Set} (1 million points broken into chunks of 10000) with identical, manually selected, starting coordinates, they produced very similar results. This trend continued when testing with different input sets, indicating that, if the two algorithms have identical starting conditions, the quality of their produced models is nearly identical.
+When the two streaming solutions were tested using observations from the  \textit{HAR Data Set} (1 million points broken into chunks of 10000) with identical, manually selected, starting coordinates, they produced very similar results (fig. \ref{fig:res11}). This trend continued when testing with different input sets, indicating that, if the two algorithms have identical starting conditions, the quality of their produced models is also nearly identical.
 
 \begin{figure}[H]
 	\centering
@@ -1090,7 +1090,7 @@ The Silhouette values of the models produced by clustering the \textit{Heterogen
 
 The implementation of ART K-Means was tested on synthetic and real data from the UCI Machine Learning Repository by also making use of the previously described stream simulating program. In this case, however, because of ART's unique input parameters and method of operation, there is no existing algorithm in MLlib that can be used for comparison purposes. Furthermore, since \texttt{K} is no longer a user supplied parameter, the loss of the model (WCSS) will be recorded for incremental values of the percentage of maximum \textit{vigilance}.
 
-One experiment involved using the synthetic data set from before -- 100000 3-dimensional points, clustered around (0,0,0), (10,10,10) and (20,20,20), with each chunk from the simulated stream containing 10000 observations. Here, a high value for the percentage of the maximum vigilance value resulted in only one centroid being created at coordinates near (10,10,10). As this value was reduced, the model transitioned to having two centroids at roughly (5,5,5) and (15,15,15), until eventually the radius of the hyperspheres around the centroids became small enough to require three of them -- one at the center of each cluster. This stepwise shift in the number of centroids can be clearly seen when looking at a plot of the resulting models' loss.
+One experiment involved using the synthetic data set from before -- 100000 3-dimensional points, clustered around (0,0,0), (10,10,10) and (20,20,20), with each chunk from the simulated stream containing 10000 observations. Here, a high value for the percentage of the maximum \textit{vigilance} resulted in only one centroid being created at coordinates near (10,10,10). As this value was reduced, the model transitioned to having two centroids at roughly (5,5,5) and (15,15,15), until eventually the radius of the hyperspheres around the centroids became small enough to require three of them -- one at the center of each cluster. This stepwise shift in the number of centroids can be clearly seen when looking at a plot of the resulting models' loss (fig. \ref{fig:res12}).
 
 \begin{figure}[H]
 	\centering
@@ -1099,7 +1099,7 @@ One experiment involved using the synthetic data set from before -- 100000 3-dim
     \label{fig:res12}
 \end{figure}
 
-It is worth pointing out that, in order to obtain a model with more than one centroid, a percentage smaller than 25 needs to be supplied. This is in fact normal behavior, caused by two different factors. Firstly, the three clusters are generated using a Gaussian function which occasionally creates points that are situated a fair distance away from their origin vector. Because of this, the values of the \textit{min} and \textit{max} vectors used by the algorithms are more extreme than [0,0,0] and [20,20,20] and so the resulting maximum possible vigilance becomes far greater. Secondly, when the collection of observations contains no outliers (e.g., points, whose normalized forms are situated near the corners of the unit hypercube) seemingly small vigilance values are enough to encompass all of the data(e.g., a hypersphere with a radius of 50\% max vigilance situates at the center of the unit hypercube).
+It is worth pointing out that, in order to obtain a model with more than one centroid, a percentage smaller than 25 needs to be supplied. This is in fact normal behavior, caused by two different factors. Firstly, the three clusters are generated using a Gaussian function which occasionally creates points that are situated a fair distance away from their origin vector. Because of this, the values of the \textit{min} and \textit{max} vectors used by the algorithms are more extreme than [0,0,0] and [20,20,20] and so the resulting maximum possible vigilance becomes far greater. Secondly, when the collection of observations contains no outliers (e.g., points, whose normalized forms are situated near the corners of the unit hypercube) seemingly small vigilance values are enough to encompass all of the data (e.g., a hypersphere with a radius of 50\% max vigilance situates at the center of the unit hypercube).
 
 When running ART K-Means on data from the \textit{Heterogeneity Activity Recognition} repository, a similar observation about the changing umber of centroids can be made (fig. \ref{fig:res13}). In this case, the clustering model contains more than one centroid when the percentage of max vigilance is less than 23\%. Then, the number of cluster centers rapidly grows to 11 at 5\% and 21 at 1\%.
 
@@ -1156,7 +1156,7 @@ The aim of this project was to create an extension to the MLlib component of Apa
 
 \section{Future Work}
 
-While the implemented algorithms present a solid foundation, there is a variety of possible extensions that could be made to enable users to further tailor the execution of clustering operations to better fit their use case. Some examples include:
+While the implemented algorithms present a solid foundation, there is a variety of possible additions that could be made to enable users to further tailor the execution of clustering operations to better fit their use case. Some examples include:
 
 \begin{itemize}
 \item alternative methods for centroid initialization when using Spark Streaming -- e.g., running K-Means++ on a collection of the first few RDDs from the DStream
